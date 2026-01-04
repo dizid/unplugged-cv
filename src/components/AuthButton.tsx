@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { createPortal } from "react-dom"
 import { createClient } from "@/lib/supabase/client"
 import type { User } from "@supabase/supabase-js"
 
@@ -34,15 +35,23 @@ export function AuthButton() {
 
   if (user) {
     return (
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-gray-600 dark:text-gray-400">
-          {user.email}
-        </span>
+      <div className="flex items-center gap-2">
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800">
+          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-medium">
+            {user.email?.charAt(0).toUpperCase()}
+          </div>
+          <span className="text-sm text-gray-700 dark:text-gray-300 max-w-[120px] truncate">
+            {user.email}
+          </span>
+        </div>
         <button
           onClick={handleSignOut}
-          className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors"
         >
-          Sign out
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          <span className="hidden sm:inline">Sign out</span>
         </button>
       </div>
     )
@@ -52,8 +61,11 @@ export function AuthButton() {
     <>
       <button
         onClick={() => setShowModal(true)}
-        className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gray-900 hover:bg-gray-800 dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 text-sm font-medium transition-colors"
       >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+        </svg>
         Sign in
       </button>
       {showModal && <AuthModal onClose={() => setShowModal(false)} />}
@@ -68,7 +80,13 @@ function AuthModal({ onClose }: { onClose: () => void }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
+  const [mounted, setMounted] = useState(false)
   const supabase = createClient()
+
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -101,7 +119,7 @@ function AuthModal({ onClose }: { onClose: () => void }) {
     setLoading(false)
   }
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div
         className="bg-white dark:bg-gray-900 rounded-2xl p-6 w-full max-w-md mx-4"
@@ -167,4 +185,8 @@ function AuthModal({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   )
+
+  if (!mounted) return null
+
+  return createPortal(modalContent, document.body)
 }
