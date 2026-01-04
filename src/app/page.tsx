@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import { AuthButton } from "@/components/AuthButton";
+import { createClient } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
 export default function Home() {
   const [background, setBackground] = useState("");
@@ -10,7 +13,17 @@ export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const outputRef = useRef<HTMLDivElement>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, [supabase.auth]);
 
   const generate = useCallback(async () => {
     if (!background.trim()) {
@@ -53,12 +66,22 @@ export default function Home() {
           outputRef.current.scrollTop = outputRef.current.scrollHeight;
         }
       }
+
+      // Save to database if logged in
+      if (user) {
+        await supabase.from("cv_generations").insert({
+          user_id: user.id,
+          job_description: jobDescription || null,
+          generated_cv: fullOutput,
+          model_used: "claude-sonnet-4-20250514",
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsGenerating(false);
     }
-  }, [background, jobDescription]);
+  }, [background, jobDescription, user, supabase]);
 
   const copyToClipboard = useCallback(async () => {
     try {
@@ -90,14 +113,17 @@ export default function Home() {
               Paste your mess. Get a CV that works.
             </p>
           </div>
-          {output && (
-            <button
-              onClick={clearAll}
-              className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-            >
-              Start over
-            </button>
-          )}
+          <div className="flex items-center gap-4">
+            {output && (
+              <button
+                onClick={clearAll}
+                className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                Start over
+              </button>
+            )}
+            <AuthButton />
+          </div>
         </div>
       </header>
 
