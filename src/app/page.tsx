@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { AuthButton } from "@/components/AuthButton";
-import { createClient } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
 export default function Home() {

@@ -43,3 +43,6 @@ next-env.d.ts
 # Sensitive docs
 docs/tmp.env.md
 docs/dev.txt
+
+# Local Netlify folder
+.netlify
