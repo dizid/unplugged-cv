@@ -1,8 +1,19 @@
 import Stripe from "stripe";
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-12-15.clover",
-});
+// Lazy initialization to avoid build-time errors when env vars aren't available
+let _stripe: Stripe | null = null;
+
+export function getStripe(): Stripe {
+  if (!_stripe) {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      throw new Error("Missing STRIPE_SECRET_KEY environment variable");
+    }
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2025-12-15.clover",
+    });
+  }
+  return _stripe;
+}
 
 // One-time payment for all premium features ($10)
 export const PRICE_AMOUNT = 1000; // $10.00 in cents
@@ -13,7 +24,7 @@ export async function createCheckoutSession(
   userEmail: string,
   cvId?: string
 ) {
-  const session = await stripe.checkout.sessions.create({
+  const session = await getStripe().checkout.sessions.create({
     mode: "payment",
     payment_method_types: ["card"],
     customer_email: userEmail,
