@@ -187,8 +187,9 @@ export default function Home() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg className="w-5 h-5" viewBox="0 0 32 32" fill="none">
+                <path d="M7 5 L7 21 Q7 27 13 27 L14 27" stroke="white" strokeWidth="5" strokeLinecap="round" fill="none"/>
+                <path d="M25 5 L25 21 Q25 27 19 27 L18 27" stroke="white" strokeWidth="5" strokeLinecap="round" fill="none"/>
               </svg>
             </div>
             <div>
