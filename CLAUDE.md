@@ -6,7 +6,7 @@
 
 - Next.js 16 + React 19 (App Router)
 - Tailwind CSS v4
-- Supabase (Auth + Postgres)
+- Neon (Postgres) + Neon Auth (Better Auth)
 - Drizzle ORM
 - Anthropic Claude API
 - Stripe (payments)
@@ -28,11 +28,13 @@ npm run db:studio    # Open Drizzle Studio
 ```
 src/
 ├── app/              # Next.js app router
-│   ├── api/          # API routes (generate, checkout, webhook)
+│   ├── api/          # API routes (generate, checkout, webhook, etc.)
+│   ├── cv/[slug]/    # Public CV pages
 │   └── page.tsx      # Main CV builder page
 ├── components/       # React components
 └── lib/              # Utilities
-    ├── supabase/     # Supabase client/server utils
+    ├── auth/         # Neon Auth client/server utils
+    ├── db/           # Drizzle schema and database
     ├── prompts.ts    # Claude prompts for CV generation
     ├── stripe.ts     # Stripe configuration
     └── pdf.ts        # PDF generation
@@ -53,6 +55,8 @@ src/
 - Use clear comments only when logic isn't self-evident
 - Keep existing working code intact when adding features
 - Prefer editing existing files over creating new ones
+- Modular, maintainable structure
+- Use the Neon and Netlify MCP servers
 
 ## Domain Rules
 

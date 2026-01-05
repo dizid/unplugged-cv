@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 import { generatePDF } from "@/lib/pdf";
+import { MatchScore } from "@/components/MatchScore";
+import type { ParsedJob } from "@/app/api/parse-job/route";
 
 interface ActionPanelProps {
   hasPaid: boolean;
@@ -9,6 +11,8 @@ interface ActionPanelProps {
   cvId?: string;
   onCopy: () => void;
   copied: boolean;
+  cv?: string;
+  parsedJob?: ParsedJob | null;
 }
 
 export function ActionPanel({
@@ -17,6 +21,8 @@ export function ActionPanel({
   cvId,
   onCopy,
   copied,
+  cv,
+  parsedJob,
 }: ActionPanelProps) {
   const [slug, setSlug] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
@@ -183,6 +189,16 @@ export function ActionPanel({
           </button>
         </div>
       </div>
+
+      {/* Match Score Section */}
+      {cv && (
+        <MatchScore
+          cv={cv}
+          parsedJob={parsedJob ?? null}
+          hasPaid={hasPaid}
+          onCheckout={handleCheckout}
+        />
+      )}
 
       {/* Publish Section */}
       <div className="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">

@@ -8,7 +8,9 @@ import { ActionPanel } from "@/components/ActionPanel";
 import { ImportButtons } from "@/components/ImportButtons";
 import { URLImportModal } from "@/components/URLImportModal";
 import { GoogleDocsModal } from "@/components/GoogleDocsModal";
+import { JobAnalysis } from "@/components/JobAnalysis";
 import { authClient } from "@/lib/auth/client";
+import type { ParsedJob } from "@/app/api/parse-job/route";
 
 export default function Home() {
   const [background, setBackground] = useState("");
@@ -21,6 +23,10 @@ export default function Home() {
   const [hasPaid, setHasPaid] = useState(false);
   const [showUrlModal, setShowUrlModal] = useState(false);
   const [showGoogleDocsModal, setShowGoogleDocsModal] = useState(false);
+  const [parsedJob, setParsedJob] = useState<ParsedJob | null>(null);
+  const [coverLetter, setCoverLetter] = useState("");
+  const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false);
+  const [activeView, setActiveView] = useState<"cv" | "cover-letter">("cv");
   const outputRef = useRef<HTMLDivElement>(null);
   const session = authClient.useSession();
   const user = session.data?.user;
@@ -107,21 +113,70 @@ export default function Home() {
     }
   }, [background, jobDescription, user]);
 
-  const copyToClipboard = useCallback(async () => {
+  const generateCoverLetter = useCallback(async () => {
+    if (!output || !parsedJob) return;
+
+    setIsGeneratingCoverLetter(true);
+    setCoverLetter("");
+    setActiveView("cover-letter");
+
     try {
-      await navigator.clipboard.writeText(output);
+      const response = await fetch("/api/generate-cover-letter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cv: output, parsedJob }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to generate cover letter");
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response stream");
+
+      const decoder = new TextDecoder();
+      let fullOutput = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        fullOutput += chunk;
+        setCoverLetter(fullOutput);
+
+        if (outputRef.current) {
+          outputRef.current.scrollTop = outputRef.current.scrollHeight;
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate cover letter");
+      setActiveView("cv");
+    } finally {
+      setIsGeneratingCoverLetter(false);
+    }
+  }, [output, parsedJob]);
+
+  const copyToClipboard = useCallback(async () => {
+    const contentToCopy = activeView === "cv" ? output : coverLetter;
+    try {
+      await navigator.clipboard.writeText(contentToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setError("Failed to copy to clipboard");
     }
-  }, [output]);
+  }, [output, coverLetter, activeView]);
 
   const clearAll = useCallback(() => {
     setBackground("");
     setJobDescription("");
     setOutput("");
+    setCoverLetter("");
     setError("");
+    setParsedJob(null);
+    setActiveView("cv");
   }, []);
 
   return (
@@ -223,6 +278,9 @@ Example:
                 className="w-full h-32 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                 disabled={isGenerating}
               />
+
+              {/* Job Analysis */}
+              <JobAnalysis jobDescription={jobDescription} onJobParsed={setParsedJob} />
             </div>
 
             {/* Error */}
@@ -254,14 +312,46 @@ Example:
         ) : (
           /* Output View */
           <div className="grid lg:grid-cols-[1fr,340px] gap-8">
-            {/* CV Preview */}
+            {/* Document Preview */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Your CV
-                </h2>
+                {/* Toggle buttons */}
+                <div className="flex items-center gap-1 p-1 rounded-lg bg-gray-100 dark:bg-gray-800">
+                  <button
+                    onClick={() => setActiveView("cv")}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeView === "cv"
+                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    }`}
+                  >
+                    CV
+                  </button>
+                  <button
+                    onClick={() => coverLetter ? setActiveView("cover-letter") : generateCoverLetter()}
+                    disabled={!parsedJob || isGeneratingCoverLetter}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                      activeView === "cover-letter"
+                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    }`}
+                    title={!parsedJob ? "Analyze a job description first" : ""}
+                  >
+                    {isGeneratingCoverLetter && (
+                      <span className="animate-spin">⏳</span>
+                    )}
+                    Cover Letter
+                    {!coverLetter && parsedJob && !isGeneratingCoverLetter && (
+                      <span className="text-xs text-blue-600 dark:text-blue-400">+</span>
+                    )}
+                  </button>
+                </div>
                 <button
-                  onClick={() => setOutput("")}
+                  onClick={() => {
+                    setOutput("");
+                    setCoverLetter("");
+                    setActiveView("cv");
+                  }}
                   className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
                 >
                   Edit & Regenerate
@@ -274,13 +364,15 @@ Example:
                 className="p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 max-h-[70vh] overflow-y-auto"
               >
                 <div className="prose prose-gray dark:prose-invert max-w-none">
-                  <ReactMarkdown>{output}</ReactMarkdown>
+                  <ReactMarkdown>
+                    {activeView === "cv" ? output : coverLetter}
+                  </ReactMarkdown>
                 </div>
               </div>
 
-              {isGenerating && (
+              {(isGenerating || isGeneratingCoverLetter) && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">
-                  Still writing...
+                  {isGeneratingCoverLetter ? "Writing cover letter..." : "Still writing..."}
                 </p>
               )}
             </div>
@@ -293,6 +385,8 @@ Example:
                 cvId={cvId}
                 onCopy={copyToClipboard}
                 copied={copied}
+                cv={output}
+                parsedJob={parsedJob}
               />
             </div>
           </div>
@@ -301,10 +395,26 @@ Example:
 
       {/* Footer */}
       <footer className="border-t border-gray-200 dark:border-gray-800 mt-16">
-        <div className="max-w-6xl mx-auto px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>
-            No account needed. No subscription. Just paste and generate.
-          </p>
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              No account needed. No subscription. Just paste and generate.
+            </p>
+            <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
+              <Link
+                href="/terms"
+                className="hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                Terms
+              </Link>
+              <Link
+                href="/privacy"
+                className="hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                Privacy
+              </Link>
+            </div>
+          </div>
         </div>
       </footer>
 

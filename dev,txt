@@ -1,0 +1,7 @@
+To fully test the paid flow, you'll need to:
+Sign up on the live site
+Generate a CV
+Click "Unlock for $10" → Stripe checkout
+Use test card 4242 4242 4242 4242 (if in test mode) or real card (live mode)
+
+
