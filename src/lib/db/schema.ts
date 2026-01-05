@@ -22,6 +22,9 @@ export const cvGenerations = pgTable("cv_generations", {
   jobDescription: text("job_description"),
   generatedCv: text("generated_cv").notNull(),
   modelUsed: text("model_used").notNull(),
+  title: text("title"), // for CV selector, e.g., "Software Engineer CV"
+  slug: text("slug").unique(), // for public URL, e.g., "marc-de-ruijter"
+  isPublished: boolean("is_published").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

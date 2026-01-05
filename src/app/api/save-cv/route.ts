@@ -21,14 +21,17 @@ export async function POST(request: Request) {
 
     const db = getDb();
 
-    await db.insert(cvGenerations).values({
-      userId: session.user.id,
-      jobDescription,
-      generatedCv,
-      modelUsed,
-    });
+    const result = await db
+      .insert(cvGenerations)
+      .values({
+        userId: session.user.id,
+        jobDescription,
+        generatedCv,
+        modelUsed,
+      })
+      .returning({ id: cvGenerations.id });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, id: result[0]?.id });
   } catch (error) {
     console.error("Error saving CV:", error);
     return NextResponse.json(

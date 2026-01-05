@@ -1,8 +1,13 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { AuthButton } from "@/components/AuthButton";
+import { ActionPanel } from "@/components/ActionPanel";
+import { ImportButtons } from "@/components/ImportButtons";
+import { URLImportModal } from "@/components/URLImportModal";
+import { GoogleDocsModal } from "@/components/GoogleDocsModal";
 import { authClient } from "@/lib/auth/client";
 
 export default function Home() {
@@ -12,9 +17,30 @@ export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [cvId, setCvId] = useState<string | undefined>();
+  const [hasPaid, setHasPaid] = useState(false);
+  const [showUrlModal, setShowUrlModal] = useState(false);
+  const [showGoogleDocsModal, setShowGoogleDocsModal] = useState(false);
   const outputRef = useRef<HTMLDivElement>(null);
   const session = authClient.useSession();
   const user = session.data?.user;
+
+  // Handle imported content
+  const handleImportContent = useCallback((content: string) => {
+    setBackground((prev) => (prev ? prev + "\n\n" + content : content));
+  }, []);
+
+  // Check payment status when user logs in
+  useEffect(() => {
+    if (user) {
+      fetch("/api/user-status")
+        .then((res) => res.json())
+        .then((data) => setHasPaid(data.hasPaid || false))
+        .catch(() => setHasPaid(false));
+    } else {
+      setHasPaid(false);
+    }
+  }, [user]);
 
   const generate = useCallback(async () => {
     if (!background.trim()) {
@@ -60,7 +86,7 @@ export default function Home() {
 
       // Save to database if logged in
       if (user) {
-        await fetch("/api/save-cv", {
+        const saveRes = await fetch("/api/save-cv", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -69,6 +95,10 @@ export default function Home() {
             modelUsed: "claude-sonnet-4-20250514",
           }),
         });
+        const saveData = await saveRes.json();
+        if (saveData.id) {
+          setCvId(saveData.id);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -100,7 +130,7 @@ export default function Home() {
       <header className="border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           {/* Logo */}
-          <a href="/" className="flex items-center gap-2 group">
+          <Link href="/" className="flex items-center gap-2 group">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -111,7 +141,7 @@ export default function Home() {
                 unplugged<span className="text-blue-600">.cv</span>
               </span>
             </div>
-          </a>
+          </Link>
 
           {/* Center tagline - hidden on mobile */}
           <p className="hidden md:block text-sm text-gray-500 dark:text-gray-400 absolute left-1/2 -translate-x-1/2">
@@ -167,6 +197,13 @@ Example:
                 Don&apos;t worry about formatting. Paste LinkedIn exports, old
                 CVs, brain dumps - anything goes.
               </p>
+
+              {/* Import Buttons */}
+              <ImportButtons
+                onGoogleDocsClick={() => setShowGoogleDocsModal(true)}
+                onUrlClick={() => setShowUrlModal(true)}
+                disabled={isGenerating}
+              />
             </div>
 
             {/* Job Description (Optional) */}
@@ -216,30 +253,23 @@ Example:
           </div>
         ) : (
           /* Output View */
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* CV Output */}
+          <div className="grid lg:grid-cols-[1fr,340px] gap-8">
+            {/* CV Preview */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                   Your CV
                 </h2>
-                <div className="flex gap-2">
-                  <button
-                    onClick={copyToClipboard}
-                    className="px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium transition-colors"
-                  >
-                    {copied ? "✓ Copied!" : "Copy Markdown"}
-                  </button>
-                  <button
-                    onClick={() => setOutput("")}
-                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
-                  >
-                    Edit & Regenerate
-                  </button>
-                </div>
+                <button
+                  onClick={() => setOutput("")}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+                >
+                  Edit & Regenerate
+                </button>
               </div>
 
               <div
+                id="cv-preview"
                 ref={outputRef}
                 className="p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 max-h-[70vh] overflow-y-auto"
               >
@@ -255,38 +285,15 @@ Example:
               )}
             </div>
 
-            {/* Raw Markdown */}
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Raw Markdown
-              </h2>
-              <div className="p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 max-h-[70vh] overflow-y-auto">
-                <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap font-mono">
-                  {output}
-                </pre>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Coming Soon: Paid Features */}
-        {output && !isGenerating && (
-          <div className="mt-8 p-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-100 dark:border-blue-800">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Want more?
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Download as PDF, get a public CV page, save your history
-                </p>
-              </div>
-              <button
-                className="px-6 py-3 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-colors"
-                onClick={() => alert("Coming soon! $10 one-time for all features.")}
-              >
-                Unlock for $10
-              </button>
+            {/* Action Panel */}
+            <div className="lg:sticky lg:top-20 lg:self-start">
+              <ActionPanel
+                hasPaid={hasPaid}
+                isLoggedIn={!!user}
+                cvId={cvId}
+                onCopy={copyToClipboard}
+                copied={copied}
+              />
             </div>
           </div>
         )}
@@ -300,6 +307,18 @@ Example:
           </p>
         </div>
       </footer>
+
+      {/* Import Modals */}
+      <URLImportModal
+        isOpen={showUrlModal}
+        onClose={() => setShowUrlModal(false)}
+        onImport={handleImportContent}
+      />
+      <GoogleDocsModal
+        isOpen={showGoogleDocsModal}
+        onClose={() => setShowGoogleDocsModal(false)}
+        onImport={handleImportContent}
+      />
     </main>
   );
 }
