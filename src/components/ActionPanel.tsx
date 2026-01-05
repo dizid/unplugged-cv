@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { generatePDF } from "@/lib/pdf";
 import { MatchScore } from "@/components/MatchScore";
+import { CheckoutModal } from "@/components/CheckoutModal";
 import type { ParsedJob } from "@/app/api/parse-job/route";
 
 interface ActionPanelProps {
@@ -13,6 +14,7 @@ interface ActionPanelProps {
   copied: boolean;
   cv?: string;
   parsedJob?: ParsedJob | null;
+  onPaymentComplete?: () => void;
 }
 
 export function ActionPanel({
@@ -23,6 +25,7 @@ export function ActionPanel({
   copied,
   cv,
   parsedJob,
+  onPaymentComplete,
 }: ActionPanelProps) {
   const [slug, setSlug] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
@@ -30,6 +33,7 @@ export function ActionPanel({
   const [publishError, setPublishError] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
 
   const handleDownloadPDF = useCallback(async () => {
     if (!hasPaid) {
@@ -49,24 +53,14 @@ export function ActionPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasPaid]);
 
-  const handleCheckout = useCallback(async () => {
-    try {
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cvId }),
-      });
+  const handleCheckout = useCallback(() => {
+    setShowCheckout(true);
+  }, []);
 
-      if (!response.ok) {
-        throw new Error("Failed to create checkout session");
-      }
-
-      const { url } = await response.json();
-      window.location.href = url;
-    } catch (err) {
-      console.error("Checkout failed:", err);
-    }
-  }, [cvId]);
+  const handlePaymentComplete = useCallback(() => {
+    setShowCheckout(false);
+    onPaymentComplete?.();
+  }, [onPaymentComplete]);
 
   const handlePublish = useCallback(async () => {
     if (!hasPaid) {
@@ -324,6 +318,13 @@ export function ActionPanel({
           </div>
         </div>
       )}
+
+      <CheckoutModal
+        isOpen={showCheckout}
+        onClose={() => setShowCheckout(false)}
+        onComplete={handlePaymentComplete}
+        cvId={cvId}
+      />
     </div>
   );
 }
