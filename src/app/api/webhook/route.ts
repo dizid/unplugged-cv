@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import Stripe from "stripe";
+import { eq } from "drizzle-orm";
 import { getStripe } from "@/lib/stripe";
-import { createAdminClient } from "@/lib/supabase/server";
+import { getDb, userProfiles, payments } from "@/lib/db";
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -38,34 +39,34 @@ export async function POST(request: Request) {
     const userId = session.metadata?.userId;
 
     if (userId) {
-      const supabase = createAdminClient();
+      const db = getDb();
 
-      // Update user to has_paid = true
-      const { error } = await supabase
-        .from("user_profiles")
-        .update({ has_paid: true })
-        .eq("id", userId);
+      try {
+        // Update user to has_paid = true
+        await db
+          .update(userProfiles)
+          .set({ hasPaid: true, updatedAt: new Date() })
+          .where(eq(userProfiles.id, userId));
 
-      if (error) {
+        // Log the payment
+        await db.insert(payments).values({
+          userId,
+          amount: Math.round(session.amount_total! / 100),
+          currency: session.currency?.toUpperCase() || "USD",
+          status: "completed",
+          provider: "stripe",
+          providerPaymentId: session.payment_intent as string,
+          paymentType: "one_time",
+        });
+
+        console.log(`User ${userId} upgraded to premium`);
+      } catch (error) {
         console.error("Failed to update user payment status:", error);
         return NextResponse.json(
           { error: "Failed to update user" },
           { status: 500 }
         );
       }
-
-      // Log the payment
-      await supabase.from("payments").insert({
-        user_id: userId,
-        amount: session.amount_total! / 100,
-        currency: session.currency?.toUpperCase() || "USD",
-        status: "completed",
-        provider: "stripe",
-        provider_payment_id: session.payment_intent as string,
-        payment_type: "one_time",
-      });
-
-      console.log(`User ${userId} upgraded to premium`);
     }
   }
 

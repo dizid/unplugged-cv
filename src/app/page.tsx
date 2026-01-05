@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { AuthButton } from "@/components/AuthButton";
-import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import { authClient } from "@/lib/auth/client";
 
 export default function Home() {
   const [background, setBackground] = useState("");
@@ -13,17 +12,9 @@ export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const outputRef = useRef<HTMLDivElement>(null);
-  const supabase = createClient();
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, [supabase.auth]);
+  const session = authClient.useSession();
+  const user = session.data?.user;
 
   const generate = useCallback(async () => {
     if (!background.trim()) {
@@ -69,11 +60,14 @@ export default function Home() {
 
       // Save to database if logged in
       if (user) {
-        await supabase.from("cv_generations").insert({
-          user_id: user.id,
-          job_description: jobDescription || null,
-          generated_cv: fullOutput,
-          model_used: "claude-sonnet-4-20250514",
+        await fetch("/api/save-cv", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            jobDescription: jobDescription || null,
+            generatedCv: fullOutput,
+            modelUsed: "claude-sonnet-4-20250514",
+          }),
         });
       }
     } catch (err) {
@@ -81,7 +75,7 @@ export default function Home() {
     } finally {
       setIsGenerating(false);
     }
-  }, [background, jobDescription, user, supabase]);
+  }, [background, jobDescription, user]);
 
   const copyToClipboard = useCallback(async () => {
     try {

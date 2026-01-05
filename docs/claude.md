@@ -56,3 +56,4 @@ Output JSON structure:
 - Use clear comments in code
 - Keep existing working code intact when adding features
 - Modular, maintainable structure
+- Use the neon and netlify mcp servers
