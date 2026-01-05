@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { AuthButton } from "@/components/AuthButton";
@@ -30,14 +31,20 @@ export default function Home() {
   const outputRef = useRef<HTMLDivElement>(null);
   const session = authClient.useSession();
   const user = session.data?.user;
+  const searchParams = useSearchParams();
+  const isTestMode = searchParams.get("test") === "test123";
 
   // Handle imported content
   const handleImportContent = useCallback((content: string) => {
     setBackground((prev) => (prev ? prev + "\n\n" + content : content));
   }, []);
 
-  // Check payment status when user logs in
+  // Check payment status when user logs in (or test mode)
   useEffect(() => {
+    if (isTestMode) {
+      setHasPaid(true);
+      return;
+    }
     if (user) {
       fetch("/api/user-status")
         .then((res) => res.json())
@@ -46,7 +53,7 @@ export default function Home() {
     } else {
       setHasPaid(false);
     }
-  }, [user]);
+  }, [user, isTestMode]);
 
   const generate = useCallback(async () => {
     if (!background.trim()) {
