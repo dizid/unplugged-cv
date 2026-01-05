@@ -3,6 +3,30 @@
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
+// Convert oklch colors to rgb for html2canvas compatibility
+function convertOklchColors(element: HTMLElement) {
+  const allElements = element.querySelectorAll("*");
+  const elementsToProcess = [element, ...Array.from(allElements)] as HTMLElement[];
+
+  elementsToProcess.forEach((el) => {
+    const computed = window.getComputedStyle(el);
+    const colorProps = ["color", "background-color", "border-color", "border-top-color", "border-right-color", "border-bottom-color", "border-left-color"];
+
+    colorProps.forEach((prop) => {
+      const value = computed.getPropertyValue(prop);
+      if (value && value.includes("oklch")) {
+        // Create a temp element to get the computed rgb value
+        const temp = document.createElement("div");
+        temp.style.color = value;
+        document.body.appendChild(temp);
+        const rgb = window.getComputedStyle(temp).color;
+        document.body.removeChild(temp);
+        el.style.setProperty(prop, rgb);
+      }
+    });
+  });
+}
+
 export async function generatePDF(elementId: string, filename: string = "cv.pdf") {
   const element = document.getElementById(elementId);
   if (!element) {
@@ -15,6 +39,9 @@ export async function generatePDF(elementId: string, filename: string = "cv.pdf"
     useCORS: true,
     logging: false,
     backgroundColor: "#ffffff",
+    onclone: (_doc, clonedElement) => {
+      convertOklchColors(clonedElement);
+    },
   });
 
   // Calculate dimensions for A4
