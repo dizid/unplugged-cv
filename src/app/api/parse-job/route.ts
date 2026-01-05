@@ -74,7 +74,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const response = await anthropic.messages.create({
+    // Use streaming to avoid edge function timeouts
+    const stream = await anthropic.messages.stream({
       ...JOB_PARSER_MODEL_CONFIG,
       system: JOB_PARSER_SYSTEM_PROMPT,
       messages: [
@@ -85,23 +86,28 @@ export async function POST(request: Request) {
       ],
     });
 
-    // Extract text content
-    const textContent = response.content.find((c) => c.type === "text");
-    if (!textContent || textContent.type !== "text") {
-      throw new Error("No text response from AI");
+    // Collect the full response
+    let fullText = "";
+    for await (const event of stream) {
+      if (
+        event.type === "content_block_delta" &&
+        event.delta.type === "text_delta"
+      ) {
+        fullText += event.delta.text;
+      }
     }
 
     // Parse JSON response
     let parsed: ParsedJob;
     try {
       // Handle potential markdown code blocks
-      let jsonText = textContent.text.trim();
+      let jsonText = fullText.trim();
       if (jsonText.startsWith("```")) {
         jsonText = jsonText.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
       }
       parsed = JSON.parse(jsonText);
     } catch {
-      console.error("Failed to parse AI response:", textContent.text);
+      console.error("Failed to parse AI response:", fullText);
       throw new Error("Failed to parse job analysis");
     }
 

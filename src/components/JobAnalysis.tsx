@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { ParsedJob } from "@/app/api/parse-job/route";
 
 interface JobAnalysisProps {
@@ -13,12 +13,23 @@ export function JobAnalysis({ jobDescription, onJobParsed }: JobAnalysisProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState("");
   const [isExpanded, setIsExpanded] = useState(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const cancelAnalysis = useCallback(() => {
+    abortControllerRef.current?.abort();
+    setIsAnalyzing(false);
+    setError("");
+  }, []);
 
   const analyzeJob = useCallback(async () => {
     if (!jobDescription || jobDescription.trim().length < 50) {
       setError("Job description is too short to analyze");
       return;
     }
+
+    // Cancel any existing request
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
 
     setIsAnalyzing(true);
     setError("");
@@ -28,6 +39,7 @@ export function JobAnalysis({ jobDescription, onJobParsed }: JobAnalysisProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jobDescription }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
@@ -39,6 +51,9 @@ export function JobAnalysis({ jobDescription, onJobParsed }: JobAnalysisProps) {
       setParsedJob(parsed);
       onJobParsed?.(parsed);
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        return; // User cancelled, don't show error
+      }
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsAnalyzing(false);
@@ -81,9 +96,17 @@ export function JobAnalysis({ jobDescription, onJobParsed }: JobAnalysisProps) {
   if (isAnalyzing) {
     return (
       <div className="mt-4 p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-        <div className="flex items-center gap-3">
-          <div className="animate-spin w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full" />
-          <span className="text-gray-600 dark:text-gray-400">Analyzing job description...</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full" />
+            <span className="text-gray-600 dark:text-gray-400">Analyzing job description...</span>
+          </div>
+          <button
+            onClick={cancelAnalysis}
+            className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     );
