@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authServer } from "@/lib/auth/server";
-import { getDb, cvGenerations } from "@/lib/db";
+import { getDb, cvGenerations, userProfiles } from "@/lib/db";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: Request) {
   try {
@@ -20,6 +21,17 @@ export async function POST(request: Request) {
     }
 
     const db = getDb();
+
+    // Ensure user profile exists (required for foreign key)
+    const existingProfile = await db
+      .select({ id: userProfiles.id })
+      .from(userProfiles)
+      .where(eq(userProfiles.id, session.user.id))
+      .limit(1);
+
+    if (existingProfile.length === 0) {
+      await db.insert(userProfiles).values({ id: session.user.id });
+    }
 
     const result = await db
       .insert(cvGenerations)
