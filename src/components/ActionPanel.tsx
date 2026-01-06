@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { generatePDF } from "@/lib/pdf";
-import { MatchScore } from "@/components/MatchScore";
-import { CheckoutModal } from "@/components/CheckoutModal";
-import type { ParsedJob } from "@/app/api/parse-job/route";
+import { isMobile, shareCV } from "@/lib/share";
 
 interface ActionPanelProps {
   hasPaid: boolean;
@@ -12,9 +10,8 @@ interface ActionPanelProps {
   cvId?: string;
   onCopy: () => void;
   copied: boolean;
-  cv?: string;
-  parsedJob?: ParsedJob | null;
-  onPaymentComplete?: () => void;
+  onCheckout: () => void;
+  activeView?: "cv" | "job-description" | "cover-letter";
 }
 
 export function ActionPanel({
@@ -23,9 +20,8 @@ export function ActionPanel({
   cvId,
   onCopy,
   copied,
-  cv,
-  parsedJob,
-  onPaymentComplete,
+  onCheckout,
+  activeView = "cv",
 }: ActionPanelProps) {
   const [slug, setSlug] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
@@ -33,38 +29,36 @@ export function ActionPanel({
   const [publishError, setPublishError] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
-  const [showCheckout, setShowCheckout] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+
+  // Detect mobile on mount to avoid hydration mismatch
+  useEffect(() => {
+    setIsMobileDevice(isMobile());
+  }, []);
 
   const handleDownloadPDF = useCallback(async () => {
     if (!hasPaid) {
-      // Redirect to checkout
-      handleCheckout();
+      onCheckout();
       return;
     }
 
     setIsDownloading(true);
     try {
-      await generatePDF("cv-preview", "my-cv.pdf");
+      const filename = activeView === "cv" ? "my-cv.pdf" : "cover-letter.pdf";
+      const docType = activeView === "cv" ? "cv" : "letter";
+      await generatePDF("cv-preview", filename, docType);
     } catch (err) {
       console.error("PDF generation failed:", err);
     } finally {
       setIsDownloading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasPaid]);
-
-  const handleCheckout = useCallback(() => {
-    setShowCheckout(true);
-  }, []);
-
-  const handlePaymentComplete = useCallback(() => {
-    setShowCheckout(false);
-    onPaymentComplete?.();
-  }, [onPaymentComplete]);
+  }, [hasPaid, activeView, onCheckout]);
 
   const handlePublish = useCallback(async () => {
     if (!hasPaid) {
-      handleCheckout();
+      onCheckout();
       return;
     }
 
@@ -86,10 +80,14 @@ export function ActionPanel({
     setPublishError("");
 
     try {
+      // Check for test mode
+      const urlParams = new URLSearchParams(window.location.search);
+      const testMode = urlParams.get("test") === "test123" ? "test123" : undefined;
+
       const response = await fetch("/api/publish-cv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cvId, slug }),
+        body: JSON.stringify({ cvId, slug, testMode }),
       });
 
       const data = await response.json();
@@ -104,7 +102,7 @@ export function ActionPanel({
     } finally {
       setIsPublishing(false);
     }
-  }, [hasPaid, slug, cvId, handleCheckout]);
+  }, [hasPaid, slug, cvId, onCheckout]);
 
   const copyPublishedUrl = useCallback(async () => {
     if (!publishedUrl) return;
@@ -116,6 +114,24 @@ export function ActionPanel({
       console.error("Failed to copy URL");
     }
   }, [publishedUrl]);
+
+  const handleShare = useCallback(async () => {
+    if (!publishedUrl) return;
+    setIsSharing(true);
+    setShareMessage(null);
+    try {
+      const title = activeView === "cv" ? "My CV" : "My Cover Letter";
+      const result = await shareCV(publishedUrl, title);
+      if (result.success && result.method === "clipboard") {
+        setShareMessage("Link copied!");
+        setTimeout(() => setShareMessage(null), 2000);
+      }
+    } catch (err) {
+      console.error("Share failed:", err);
+    } finally {
+      setIsSharing(false);
+    }
+  }, [publishedUrl, activeView]);
 
   const LockIcon = () => (
     <svg
@@ -135,44 +151,112 @@ export function ActionPanel({
 
   return (
     <div className="space-y-6">
-      {/* Download Section */}
+      {/* Download/Share Section */}
       <div className="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-          <svg
-            className="w-4 h-4 text-blue-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-            />
-          </svg>
-          Download
+          {isMobileDevice ? (
+            <svg
+              className="w-4 h-4 text-blue-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+              />
+            </svg>
+          ) : (
+            <svg
+              className="w-4 h-4 text-blue-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+          )}
+          {isMobileDevice ? "Share" : "Download"}
         </h3>
 
         <div className="space-y-3">
-          {/* PDF Download */}
-          <button
-            onClick={handleDownloadPDF}
-            disabled={isDownloading}
-            className="w-full py-3 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            {isDownloading ? (
-              <>
-                <span className="animate-spin">⏳</span>
-                Generating PDF...
-              </>
+          {shareMessage && (
+            <p className="text-sm text-green-600 dark:text-green-400 text-center">
+              {shareMessage}
+            </p>
+          )}
+
+          {isMobileDevice ? (
+            // Mobile: Share or Publish to Share
+            publishedUrl ? (
+              <button
+                onClick={handleShare}
+                disabled={isSharing}
+                className="w-full py-3 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                {isSharing ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Sharing...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                      />
+                    </svg>
+                    Share {activeView === "cv" ? "CV" : "Cover Letter"}
+                  </>
+                )}
+              </button>
             ) : (
-              <>
+              <button
+                onClick={() => {
+                  // Scroll to publish section
+                  document.getElementById("publish-section")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="w-full py-3 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center justify-center gap-2"
+              >
                 {!hasPaid && <LockIcon />}
-                Download PDF
-              </>
-            )}
-          </button>
+                Publish to Share
+              </button>
+            )
+          ) : (
+            // Desktop: Download PDF
+            <button
+              onClick={handleDownloadPDF}
+              disabled={isDownloading}
+              className="w-full py-3 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium transition-colors flex items-center justify-center gap-2"
+            >
+              {isDownloading ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  Generating PDF...
+                </>
+              ) : (
+                <>
+                  {!hasPaid && <LockIcon />}
+                  {activeView === "cv" ? "Download CV" : "Download Cover Letter"}
+                </>
+              )}
+            </button>
+          )}
 
           {/* Copy Markdown */}
           <button
@@ -184,18 +268,8 @@ export function ActionPanel({
         </div>
       </div>
 
-      {/* Match Score Section */}
-      {cv && (
-        <MatchScore
-          cv={cv}
-          parsedJob={parsedJob ?? null}
-          hasPaid={hasPaid}
-          onCheckout={handleCheckout}
-        />
-      )}
-
       {/* Publish Section */}
-      <div className="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <div id="publish-section" className="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <svg
             className="w-4 h-4 text-blue-600"
@@ -307,7 +381,7 @@ export function ActionPanel({
               Download PDF & publish your CV online
             </p>
             <button
-              onClick={handleCheckout}
+              onClick={onCheckout}
               className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium transition-all shadow-sm hover:shadow-md"
             >
               Get Premium — $10
@@ -318,13 +392,6 @@ export function ActionPanel({
           </div>
         </div>
       )}
-
-      <CheckoutModal
-        isOpen={showCheckout}
-        onClose={() => setShowCheckout(false)}
-        onComplete={handlePaymentComplete}
-        cvId={cvId}
-      />
     </div>
   );
 }

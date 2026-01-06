@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { generatePDF } from "@/lib/pdf";
+import { isMobile, shareCV } from "@/lib/share";
 
 interface PublicCVViewProps {
   cv: string;
@@ -11,6 +12,14 @@ interface PublicCVViewProps {
 
 export function PublicCVView({ cv }: PublicCVViewProps) {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
+
+  // Detect mobile on mount to avoid hydration mismatch
+  useEffect(() => {
+    setIsMobileDevice(isMobile());
+  }, []);
 
   const handleDownload = useCallback(async () => {
     setIsDownloading(true);
@@ -20,6 +29,22 @@ export function PublicCVView({ cv }: PublicCVViewProps) {
       console.error("PDF generation failed:", err);
     } finally {
       setIsDownloading(false);
+    }
+  }, []);
+
+  const handleShare = useCallback(async () => {
+    setIsSharing(true);
+    setShareMessage(null);
+    try {
+      const result = await shareCV(window.location.href, "My CV");
+      if (result.success && result.method === "clipboard") {
+        setShareMessage("Link copied!");
+        setTimeout(() => setShareMessage(null), 2000);
+      }
+    } catch (err) {
+      console.error("Share failed:", err);
+    } finally {
+      setIsSharing(false);
     }
   }, []);
 
@@ -49,35 +74,74 @@ export function PublicCVView({ cv }: PublicCVViewProps) {
             </span>
           </Link>
 
-          <button
-            onClick={handleDownload}
-            disabled={isDownloading}
-            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            {isDownloading ? (
-              <>
-                <span className="animate-spin">⏳</span>
-                Generating...
-              </>
-            ) : (
-              <>
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                  />
-                </svg>
-                Download PDF
-              </>
+          <div className="flex items-center gap-2">
+            {shareMessage && (
+              <span className="text-sm text-green-600 dark:text-green-400">
+                {shareMessage}
+              </span>
             )}
-          </button>
+            {isMobileDevice ? (
+              <button
+                onClick={handleShare}
+                disabled={isSharing}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                {isSharing ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Sharing...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                      />
+                    </svg>
+                    Share
+                  </>
+                )}
+              </button>
+            ) : (
+              <button
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                {isDownloading ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                      />
+                    </svg>
+                    Download PDF
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -87,7 +151,7 @@ export function PublicCVView({ cv }: PublicCVViewProps) {
           id="public-cv-content"
           className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-800 p-8 md:p-12"
         >
-          <div className="prose prose-gray dark:prose-invert max-w-none prose-headings:text-gray-900 dark:prose-headings:text-white prose-p:text-gray-700 dark:prose-p:text-gray-300">
+          <div className="cv-prose">
             <ReactMarkdown>{cv}</ReactMarkdown>
           </div>
         </div>

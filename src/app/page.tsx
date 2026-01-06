@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { AuthButton } from "@/components/AuthButton";
@@ -9,6 +9,8 @@ import { ImportButtons } from "@/components/ImportButtons";
 import { URLImportModal } from "@/components/URLImportModal";
 import { GoogleDocsModal } from "@/components/GoogleDocsModal";
 import { JobAnalysis } from "@/components/JobAnalysis";
+import { JobDescriptionPanel } from "@/components/JobDescriptionPanel";
+import { CheckoutModal } from "@/components/CheckoutModal";
 import { authClient } from "@/lib/auth/client";
 import type { ParsedJob } from "@/app/api/parse-job/route";
 
@@ -26,7 +28,8 @@ export default function Home() {
   const [parsedJob, setParsedJob] = useState<ParsedJob | null>(null);
   const [coverLetter, setCoverLetter] = useState("");
   const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false);
-  const [activeView, setActiveView] = useState<"cv" | "cover-letter">("cv");
+  const [activeView, setActiveView] = useState<"cv" | "job-description" | "cover-letter">("cv");
+  const [showCheckout, setShowCheckout] = useState(false);
   const outputRef = useRef<HTMLDivElement>(null);
   const session = authClient.useSession();
   const user = session.data?.user;
@@ -165,8 +168,27 @@ export default function Home() {
     }
   }, [output, parsedJob]);
 
+  // Parse CV output to separate main content from improvement suggestions
+  const { cvContent, suggestions } = useMemo(() => {
+    if (!output) return { cvContent: "", suggestions: null };
+    const separator = /\n---\n+## To Strengthen This CV/i;
+    const parts = output.split(separator);
+    return {
+      cvContent: parts[0]?.trim() || output,
+      suggestions: parts[1] ? `## To Strengthen This CV${parts[1]}` : null
+    };
+  }, [output]);
+
   const copyToClipboard = useCallback(async () => {
-    const contentToCopy = activeView === "cv" ? output : coverLetter;
+    let contentToCopy = "";
+    if (activeView === "cv") {
+      contentToCopy = cvContent; // Use parsed CV content without suggestions
+    } else if (activeView === "cover-letter") {
+      contentToCopy = coverLetter;
+    } else if (activeView === "job-description") {
+      contentToCopy = jobDescription;
+    }
+    if (!contentToCopy) return;
     try {
       await navigator.clipboard.writeText(contentToCopy);
       setCopied(true);
@@ -174,7 +196,7 @@ export default function Home() {
     } catch {
       setError("Failed to copy to clipboard");
     }
-  }, [output, coverLetter, activeView]);
+  }, [cvContent, coverLetter, jobDescription, activeView]);
 
   const clearAll = useCallback(() => {
     setBackground("");
@@ -336,6 +358,19 @@ Example:
                     CV
                   </button>
                   <button
+                    onClick={() => setActiveView("job-description")}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                      activeView === "job-description"
+                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    }`}
+                  >
+                    Job Description
+                    {parsedJob && (
+                      <span className="w-2 h-2 bg-green-500 rounded-full" />
+                    )}
+                  </button>
+                  <button
                     onClick={() => coverLetter ? setActiveView("cover-letter") : generateCoverLetter()}
                     disabled={!parsedJob || isGeneratingCoverLetter}
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
@@ -366,17 +401,45 @@ Example:
                 </button>
               </div>
 
-              <div
-                id="cv-preview"
-                ref={outputRef}
-                className="p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 max-h-[70vh] overflow-y-auto"
-              >
-                <div className="prose prose-gray dark:prose-invert max-w-none">
-                  <ReactMarkdown>
-                    {activeView === "cv" ? output : coverLetter}
-                  </ReactMarkdown>
+              {activeView === "job-description" ? (
+                <div className="p-8 md:p-10 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm max-h-[70vh] overflow-y-auto">
+                  <JobDescriptionPanel
+                    jobDescription={jobDescription}
+                    setJobDescription={setJobDescription}
+                    parsedJob={parsedJob}
+                    setParsedJob={setParsedJob}
+                    cv={output}
+                    hasPaid={hasPaid}
+                    onCheckout={() => setShowCheckout(true)}
+                  />
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div
+                    id="cv-preview"
+                    ref={outputRef}
+                    className="p-8 md:p-10 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm max-h-[70vh] overflow-y-auto"
+                  >
+                    <div className={activeView === "cv" ? "cv-prose" : "letter-prose"}>
+                      <ReactMarkdown>
+                        {activeView === "cv" ? cvContent : coverLetter}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+
+                  {/* Improvement Suggestions Card */}
+                  {activeView === "cv" && suggestions && !isGenerating && (
+                    <div className="mt-4 p-5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
+                      <div className="flex items-start gap-3">
+                        <span className="text-amber-600 dark:text-amber-400 text-xl flex-shrink-0">💡</span>
+                        <div className="prose prose-sm max-w-none text-amber-900 dark:text-amber-100 prose-headings:text-amber-800 dark:prose-headings:text-amber-200 prose-headings:text-base prose-headings:font-semibold prose-headings:mt-0 prose-headings:mb-3 prose-p:text-amber-800 dark:prose-p:text-amber-200 prose-li:text-amber-800 dark:prose-li:text-amber-200 prose-ol:my-2 prose-li:my-1">
+                          <ReactMarkdown>{suggestions}</ReactMarkdown>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
 
               {(isGenerating || isGeneratingCoverLetter) && (
                 <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">
@@ -393,9 +456,8 @@ Example:
                 cvId={cvId}
                 onCopy={copyToClipboard}
                 copied={copied}
-                cv={output}
-                parsedJob={parsedJob}
-                onPaymentComplete={() => setHasPaid(true)}
+                onCheckout={() => setShowCheckout(true)}
+                activeView={activeView}
               />
             </div>
           </div>
@@ -437,6 +499,15 @@ Example:
         isOpen={showGoogleDocsModal}
         onClose={() => setShowGoogleDocsModal(false)}
         onImport={handleImportContent}
+      />
+      <CheckoutModal
+        isOpen={showCheckout}
+        onClose={() => setShowCheckout(false)}
+        onComplete={() => {
+          setShowCheckout(false);
+          setHasPaid(true);
+        }}
+        cvId={cvId}
       />
     </main>
   );

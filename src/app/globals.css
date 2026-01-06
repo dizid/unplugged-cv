@@ -26,3 +26,278 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Outstanding CV Design - Custom Prose Styles */
+.cv-prose {
+  font-family: var(--font-geist-sans), 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* Name - Bold visual anchor */
+.cv-prose h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: #111827;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #111827;
+  margin-bottom: 0.75rem;
+  margin-top: 0;
+}
+
+.dark .cv-prose h1 {
+  color: #f9fafb;
+  border-bottom-color: #f9fafb;
+}
+
+/* Contact info - First paragraph after name */
+.cv-prose h1 + p {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  letter-spacing: 0.02em;
+  margin-top: 0;
+  margin-bottom: 2rem;
+}
+
+.dark .cv-prose h1 + p {
+  color: #9ca3af;
+}
+
+/* Section headers - Uppercase with blue accent bar */
+.cv-prose h2 {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #6b7280;
+  padding-top: 1.5rem;
+  padding-bottom: 0.5rem;
+  padding-left: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 1rem;
+  margin-top: 0;
+  position: relative;
+}
+
+.cv-prose h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 1rem;
+  background: #2563eb;
+  border-radius: 2px;
+}
+
+.dark .cv-prose h2 {
+  color: #9ca3af;
+  border-bottom-color: #374151;
+}
+
+.dark .cv-prose h2::before {
+  background: #60a5fa;
+}
+
+/* Job titles */
+.cv-prose h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  letter-spacing: -0.01em;
+  margin-top: 1.25rem;
+  margin-bottom: 0.125rem;
+}
+
+.cv-prose h3:first-of-type,
+.cv-prose h2 + h3 {
+  margin-top: 0;
+}
+
+.dark .cv-prose h3 {
+  color: #f3f4f6;
+}
+
+/* Company/dates line after job title */
+.cv-prose h3 + p {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.125rem;
+  margin-bottom: 0.5rem;
+}
+
+.dark .cv-prose h3 + p {
+  color: #9ca3af;
+}
+
+/* Body paragraphs */
+.cv-prose p {
+  font-size: 0.875rem;
+  color: #4b5563;
+  line-height: 1.65;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.dark .cv-prose p {
+  color: #d1d5db;
+}
+
+/* Professional summary - First paragraph after first h2 (make it slightly emphasized) */
+.cv-prose h2:first-of-type + p {
+  font-size: 0.9375rem;
+  color: #374151;
+  line-height: 1.7;
+}
+
+.dark .cv-prose h2:first-of-type + p {
+  color: #e5e7eb;
+}
+
+/* Bullet lists */
+.cv-prose ul {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.cv-prose ul li {
+  font-size: 0.875rem;
+  color: #4b5563;
+  line-height: 1.6;
+  padding-left: 1rem;
+  margin-bottom: 0.25rem;
+  position: relative;
+}
+
+.cv-prose ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 5px;
+  height: 5px;
+  background: #9ca3af;
+  border-radius: 50%;
+}
+
+.dark .cv-prose ul li {
+  color: #d1d5db;
+}
+
+.dark .cv-prose ul li::before {
+  background: #6b7280;
+}
+
+/* Strong text */
+.cv-prose strong {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.dark .cv-prose strong {
+  color: #e5e7eb;
+}
+
+/* Links */
+.cv-prose a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.cv-prose a:hover {
+  text-decoration: underline;
+}
+
+.dark .cv-prose a {
+  color: #60a5fa;
+}
+
+/* ================================================
+   Cover Letter Design - Modern Letter Styles
+   ================================================ */
+
+.letter-prose {
+  font-family: var(--font-geist-sans), 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+/* Base paragraph styles */
+.letter-prose p {
+  font-size: 0.9375rem;
+  color: #374151;
+  line-height: 1.8;
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+}
+
+.dark .letter-prose p {
+  color: #d1d5db;
+}
+
+/* Greeting line - "Dear Hiring Team," */
+.letter-prose > p:first-child {
+  font-size: 0.9375rem;
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+}
+
+.dark .letter-prose > p:first-child {
+  color: #9ca3af;
+}
+
+/* Opening paragraph - emphasized with blue accent */
+.letter-prose > p:nth-child(2) {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1f2937;
+  line-height: 1.75;
+  padding-left: 1rem;
+  border-left: 3px solid #2563eb;
+  margin-bottom: 1.5rem;
+}
+
+.dark .letter-prose > p:nth-child(2) {
+  color: #f3f4f6;
+  border-left-color: #60a5fa;
+}
+
+/* Sign-off paragraph - "Best regards," + name */
+.letter-prose > p:last-child {
+  color: #6b7280;
+  margin-top: 2rem;
+  margin-bottom: 0;
+}
+
+.dark .letter-prose > p:last-child {
+  color: #9ca3af;
+}
+
+/* Strong text (name in sign-off) */
+.letter-prose strong {
+  font-weight: 600;
+  color: #111827;
+}
+
+.dark .letter-prose strong {
+  color: #f9fafb;
+}
+
+/* Links */
+.letter-prose a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.letter-prose a:hover {
+  text-decoration: underline;
+}
+
+.dark .letter-prose a {
+  color: #60a5fa;
+}

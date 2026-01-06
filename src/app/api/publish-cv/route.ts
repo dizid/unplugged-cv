@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { cvId, slug } = await request.json();
+    const { cvId, slug, testMode } = await request.json();
 
     if (!cvId || !slug) {
       return NextResponse.json(
@@ -34,18 +34,22 @@ export async function POST(request: Request) {
 
     const db = getDb();
 
-    // Check if user has paid
-    const profile = await db
-      .select({ hasPaid: userProfiles.hasPaid })
-      .from(userProfiles)
-      .where(eq(userProfiles.id, session.user.id))
-      .limit(1);
+    // Check if user has paid (with test mode bypass)
+    const isTestMode = testMode === "test123";
 
-    if (!profile[0]?.hasPaid) {
-      return NextResponse.json(
-        { error: "Premium subscription required" },
-        { status: 403 }
-      );
+    if (!isTestMode) {
+      const profile = await db
+        .select({ hasPaid: userProfiles.hasPaid })
+        .from(userProfiles)
+        .where(eq(userProfiles.id, session.user.id))
+        .limit(1);
+
+      if (!profile[0]?.hasPaid) {
+        return NextResponse.json(
+          { error: "Premium subscription required" },
+          { status: 403 }
+        );
+      }
     }
 
     // Verify user owns this CV
