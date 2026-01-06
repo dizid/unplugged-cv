@@ -10,9 +10,11 @@ import { URLImportModal } from "@/components/URLImportModal";
 import { GoogleDocsModal } from "@/components/GoogleDocsModal";
 import { JobAnalysis } from "@/components/JobAnalysis";
 import { JobDescriptionPanel } from "@/components/JobDescriptionPanel";
+import { MatchScore } from "@/components/MatchScore";
 import { CheckoutModal } from "@/components/CheckoutModal";
 import { authClient } from "@/lib/auth/client";
 import type { ParsedJob } from "@/app/api/parse-job/route";
+import type { MatchResult } from "@/app/api/match-score/route";
 
 export default function Home() {
   const [background, setBackground] = useState("");
@@ -28,7 +30,8 @@ export default function Home() {
   const [parsedJob, setParsedJob] = useState<ParsedJob | null>(null);
   const [coverLetter, setCoverLetter] = useState("");
   const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false);
-  const [activeView, setActiveView] = useState<"cv" | "job-description" | "cover-letter">("cv");
+  const [activeView, setActiveView] = useState<"cv" | "job-description" | "match-score" | "cover-letter">("cv");
+  const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const outputRef = useRef<HTMLDivElement>(null);
   const session = authClient.useSession();
@@ -49,7 +52,7 @@ export default function Home() {
     }
 
     if (user) {
-      fetch("/api/user-status")
+      fetch("/api/user-status", { credentials: "include" })
         .then((res) => res.json())
         .then((data) => setHasPaid(data.hasPaid || false))
         .catch(() => setHasPaid(false));
@@ -100,20 +103,31 @@ export default function Home() {
         }
       }
 
-      // Save to database if logged in
-      if (user) {
+      // Save to database if logged in or in test mode
+      const urlParams = new URLSearchParams(window.location.search);
+      const testMode = urlParams.get("test") === "test123" ? "test123" : undefined;
+
+      if (user || testMode) {
+        // Strip suggestions section before saving - only save clean CV
+        const suggestionSeparator = /\n+(?:---\s*\n+)?## To Strengthen This CV/i;
+        const cleanCv = fullOutput.split(suggestionSeparator)[0]?.trim() || fullOutput;
+
         const saveRes = await fetch("/api/save-cv", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "include",
           body: JSON.stringify({
             jobDescription: jobDescription || null,
-            generatedCv: fullOutput,
+            generatedCv: cleanCv,
             modelUsed: "claude-sonnet-4-20250514",
+            testMode,
           }),
         });
         const saveData = await saveRes.json();
         if (saveData.id) {
           setCvId(saveData.id);
+        } else if (saveData.error) {
+          console.error("Failed to save CV:", saveData.error);
         }
       }
     } catch (err) {
@@ -171,7 +185,8 @@ export default function Home() {
   // Parse CV output to separate main content from improvement suggestions
   const { cvContent, suggestions } = useMemo(() => {
     if (!output) return { cvContent: "", suggestions: null };
-    const separator = /\n---\n+## To Strengthen This CV/i;
+    // Match various formats: with or without ---, different spacing
+    const separator = /\n+(?:---\s*\n+)?## To Strengthen This CV/i;
     const parts = output.split(separator);
     return {
       cvContent: parts[0]?.trim() || output,
@@ -205,6 +220,7 @@ export default function Home() {
     setCoverLetter("");
     setError("");
     setParsedJob(null);
+    setMatchResult(null);
     setActiveView("cv");
   }, []);
 
@@ -347,16 +363,21 @@ Example:
               <div className="flex items-center justify-between">
                 {/* Toggle buttons */}
                 <div className="flex items-center gap-1 p-1 rounded-lg bg-gray-100 dark:bg-gray-800">
+                  {/* CV Tab */}
                   <button
                     onClick={() => setActiveView("cv")}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
                       activeView === "cv"
                         ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                         : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                     }`}
                   >
                     CV
+                    {output && (
+                      <span className="w-2 h-2 bg-green-500 rounded-full" />
+                    )}
                   </button>
+                  {/* Job Description Tab */}
                   <button
                     onClick={() => setActiveView("job-description")}
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
@@ -370,10 +391,27 @@ Example:
                       <span className="w-2 h-2 bg-green-500 rounded-full" />
                     )}
                   </button>
+                  {/* Match Score Tab */}
+                  <button
+                    onClick={() => setActiveView("match-score")}
+                    disabled={!parsedJob}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                      activeView === "match-score"
+                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    }`}
+                    title={!parsedJob ? "Analyze a job description first" : ""}
+                  >
+                    Match Score
+                    {matchResult && (
+                      <span className="w-2 h-2 bg-green-500 rounded-full" />
+                    )}
+                  </button>
+                  {/* Cover Letter Tab */}
                   <button
                     onClick={() => coverLetter ? setActiveView("cover-letter") : generateCoverLetter()}
                     disabled={!parsedJob || isGeneratingCoverLetter}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
                       activeView === "cover-letter"
                         ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
                         : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
@@ -384,6 +422,9 @@ Example:
                       <span className="animate-spin">⏳</span>
                     )}
                     Cover Letter
+                    {coverLetter && (
+                      <span className="w-2 h-2 bg-green-500 rounded-full" />
+                    )}
                     {!coverLetter && parsedJob && !isGeneratingCoverLetter && (
                       <span className="text-xs text-blue-600 dark:text-blue-400">+</span>
                     )}
@@ -408,9 +449,16 @@ Example:
                     setJobDescription={setJobDescription}
                     parsedJob={parsedJob}
                     setParsedJob={setParsedJob}
-                    cv={output}
+                  />
+                </div>
+              ) : activeView === "match-score" ? (
+                <div className="p-6 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm max-h-[70vh] overflow-y-auto">
+                  <MatchScore
+                    cv={cvContent}
+                    parsedJob={parsedJob}
                     hasPaid={hasPaid}
                     onCheckout={() => setShowCheckout(true)}
+                    onMatchComplete={setMatchResult}
                   />
                 </div>
               ) : (
@@ -469,9 +517,15 @@ Example:
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              No account needed. No subscription. Just paste and generate.
+              Your career, unplugged. Professional CVs in minutes.
             </p>
             <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-gray-400">
+              <Link
+                href="/contact"
+                className="hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                Contact
+              </Link>
               <Link
                 href="/terms"
                 className="hover:text-gray-900 dark:hover:text-white transition-colors"
@@ -484,6 +538,14 @@ Example:
               >
                 Privacy
               </Link>
+              <a
+                href="https://dizid.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                Built by dizid.com
+              </a>
             </div>
           </div>
         </div>

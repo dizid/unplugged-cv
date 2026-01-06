@@ -9,25 +9,22 @@
   - Publish directory: `.next`
 - [ ] Add environment variables in Netlify dashboard:
   - [ ] `ANTHROPIC_API_KEY`
+  - [ ] `DATABASE_URL` (Neon connection string)
   - [ ] `STRIPE_SECRET_KEY`
   - [ ] `STRIPE_WEBHOOK_SECRET` (update after creating production webhook)
   - [ ] `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-  - [ ] `NEXT_PUBLIC_SUPABASE_URL`
-  - [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - [ ] `SUPABASE_SERVICE_ROLE_KEY`
   - [ ] `NEXT_PUBLIC_APP_URL` (set to your Netlify URL)
 - [ ] Deploy
 
 ## Post-Deploy
 
-### 1. Supabase Auth Configuration
+### 1. Neon Auth Configuration
 
 After getting your Netlify URL (e.g., `https://your-site.netlify.app`):
 
-- [ ] Go to [Supabase Dashboard](https://supabase.com/dashboard)
-- [ ] Select project → **Authentication** → **URL Configuration**
-- [ ] Set **Site URL** to: `https://your-site.netlify.app`
-- [ ] Add to **Redirect URLs**: `https://your-site.netlify.app/**`
+- [ ] Go to [Neon Console](https://console.neon.tech)
+- [ ] Select project → **Auth** tab
+- [ ] Update **Redirect URLs** to include your production domain
 
 ### 2. Stripe Webhook (Production)
 
@@ -43,7 +40,7 @@ After getting your Netlify URL (e.g., `https://your-site.netlify.app`):
 ### 3. Test the Flow
 
 - [ ] Visit your live site
-- [ ] Test login/signup
+- [ ] Test login/signup with Neon Auth
 - [ ] Paste sample career info and generate CV
 - [ ] Test Stripe checkout (use [test cards](https://stripe.com/docs/testing#cards))
 - [ ] Verify webhook receives payment confirmation
@@ -52,8 +49,8 @@ After getting your Netlify URL (e.g., `https://your-site.netlify.app`):
 
 | Service | URL |
 |---------|-----|
-| Live Site | `https://_____.netlify.app` |
-| Netlify Dashboard | `https://app.netlify.com/sites/_____` |
-| Supabase Dashboard | `https://supabase.com/dashboard/project/aajllpghqmeulnvlruaj` |
+| Live Site | `https://unplugged.cv` |
+| Netlify Dashboard | `https://app.netlify.com/sites/unplugged-cv` |
+| Neon Console | `https://console.neon.tech` |
 | Stripe Dashboard | `https://dashboard.stripe.com` |
 | GitHub Repo | `https://github.com/dizid/unplugged-cv` |

@@ -21,21 +21,22 @@ Extend from CV generation to **job application intelligence**—helping users ap
 
 ## Roadmap
 
-### Phase 1: Job Description Parser (MVP)
+### Phase 1: Job Description Parser ✅ DONE
 
 **Goal**: Paste job description, see structured analysis + red flags
 
 **Features**:
-- Parse job requirements (must-have vs nice-to-have)
-- Extract seniority signals
-- Detect red flags ("rockstar", unrealistic requirements)
-- Show salary range if mentioned
+- ✅ Parse job requirements (must-have vs nice-to-have)
+- ✅ Extract seniority signals
+- ✅ Detect red flags ("rockstar", unrealistic requirements)
+- ✅ Show salary range if mentioned
+- ✅ Cover letter generation based on job + CV
 
 **Files**:
 - `src/lib/prompts-job.ts` - Prompt for job parsing
 - `src/app/api/parse-job/route.ts` - API endpoint
 - `src/components/JobAnalysis.tsx` - Display component
-- `src/app/page.tsx` - Add job analysis section
+- `src/app/page.tsx` - Job analysis integration
 
 ---
 

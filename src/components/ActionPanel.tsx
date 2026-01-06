@@ -11,7 +11,7 @@ interface ActionPanelProps {
   onCopy: () => void;
   copied: boolean;
   onCheckout: () => void;
-  activeView?: "cv" | "job-description" | "cover-letter";
+  activeView?: "cv" | "job-description" | "match-score" | "cover-letter";
 }
 
 export function ActionPanel({
@@ -87,6 +87,7 @@ export function ActionPanel({
       const response = await fetch("/api/publish-cv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ cvId, slug, testMode }),
       });
 
@@ -148,6 +149,11 @@ export function ActionPanel({
       />
     </svg>
   );
+
+  // Don't show action panel on job-description or match-score tabs
+  if (activeView === "job-description" || activeView === "match-score") {
+    return null;
+  }
 
   return (
     <div className="space-y-6">

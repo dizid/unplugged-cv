@@ -43,21 +43,9 @@ const cvStyles = `
     padding-top: 24px;
     padding-bottom: 8px;
     padding-left: 12px;
+    border-left: 3px solid #2563eb;
     border-bottom: 1px solid #e5e7eb;
     margin-bottom: 16px;
-    position: relative;
-  }
-
-  h2::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 16px;
-    background: #2563eb;
-    border-radius: 2px;
   }
 
   /* Job titles */
@@ -119,7 +107,7 @@ const cvStyles = `
     top: 0.6em;
     width: 5px;
     height: 5px;
-    background: #9ca3af;
+    background-color: #9ca3af;
     border-radius: 50%;
   }
 
@@ -134,11 +122,45 @@ const cvStyles = `
   }
 
   @media print {
-    @page { margin: 0; }
-    body { padding: 48px; margin: 0; }
-    h2 { page-break-after: avoid; }
-    h3 { page-break-after: avoid; }
-    li { page-break-inside: avoid; }
+    @page {
+      margin: 0.5in;
+      size: letter;
+    }
+    body {
+      padding: 0;
+      margin: 0;
+      orphans: 3;
+      widows: 3;
+    }
+    h2 {
+      break-after: avoid;
+      page-break-after: avoid;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    h3 {
+      break-after: avoid;
+      page-break-after: avoid;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    h3 + p {
+      break-before: avoid;
+      page-break-before: avoid;
+    }
+    ul {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    li {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    /* Prevent orphaned content */
+    p {
+      orphans: 2;
+      widows: 2;
+    }
   }
 `;
 
@@ -199,8 +221,11 @@ const letterStyles = `
   }
 
   @media print {
-    @page { margin: 0; }
-    body { padding: 56px; margin: 0; }
+    @page {
+      margin: 1in 0.75in;
+      size: letter;
+    }
+    body { padding: 0; margin: 0; }
     p { page-break-inside: avoid; }
   }
 `;

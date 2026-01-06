@@ -9,9 +9,10 @@ interface MatchScoreProps {
   parsedJob: ParsedJob | null;
   hasPaid: boolean;
   onCheckout: () => void;
+  onMatchComplete?: (result: MatchResult) => void;
 }
 
-export function MatchScore({ cv, parsedJob, hasPaid, onCheckout }: MatchScoreProps) {
+export function MatchScore({ cv, parsedJob, hasPaid, onCheckout, onMatchComplete }: MatchScoreProps) {
   const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState("");
@@ -49,6 +50,7 @@ export function MatchScore({ cv, parsedJob, hasPaid, onCheckout }: MatchScorePro
       const result = await response.json();
       setMatchResult(result);
       setIsExpanded(true);
+      onMatchComplete?.(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {

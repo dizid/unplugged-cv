@@ -156,22 +156,6 @@ export function PublicCVView({ cv }: PublicCVViewProps) {
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-800 mt-8">
-        <div className="max-w-4xl mx-auto px-4 py-6 text-center">
-          <Link
-            href="/"
-            className="text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-          >
-            Made with{" "}
-            <span className="font-semibold">
-              unplugged<span className="text-blue-600">.cv</span>
-            </span>{" "}
-            — Create your own AI-powered CV
-          </Link>
-        </div>
-      </footer>
     </div>
   );
 }

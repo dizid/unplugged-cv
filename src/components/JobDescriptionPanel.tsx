@@ -1,7 +1,6 @@
 "use client";
 
 import { JobAnalysis } from "@/components/JobAnalysis";
-import { MatchScore } from "@/components/MatchScore";
 import type { ParsedJob } from "@/app/api/parse-job/route";
 
 interface JobDescriptionPanelProps {
@@ -9,9 +8,6 @@ interface JobDescriptionPanelProps {
   setJobDescription: (value: string) => void;
   parsedJob: ParsedJob | null;
   setParsedJob: (parsed: ParsedJob | null) => void;
-  cv: string;
-  hasPaid: boolean;
-  onCheckout: () => void;
 }
 
 export function JobDescriptionPanel({
@@ -19,9 +15,6 @@ export function JobDescriptionPanel({
   setJobDescription,
   parsedJob,
   setParsedJob,
-  cv,
-  hasPaid,
-  onCheckout,
 }: JobDescriptionPanelProps) {
   return (
     <div className="space-y-6">
@@ -53,26 +46,11 @@ export function JobDescriptionPanel({
         onJobParsed={setParsedJob}
       />
 
-      {/* Match Score - shows after job is analyzed */}
-      {parsedJob && cv && (
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
-            CV Match Analysis
-          </h3>
-          <MatchScore
-            cv={cv}
-            parsedJob={parsedJob}
-            hasPaid={hasPaid}
-            onCheckout={onCheckout}
-          />
-        </div>
-      )}
-
       {/* Prompt to analyze if job text exists but not analyzed */}
       {jobDescription.length >= 50 && !parsedJob && (
         <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
           <p className="text-sm text-blue-700 dark:text-blue-400">
-            Click &quot;Analyze Job&quot; above to see how your CV matches this position.
+            Click &quot;Analyze Job&quot; above to analyze the job requirements.
           </p>
         </div>
       )}
