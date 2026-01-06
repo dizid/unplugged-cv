@@ -157,10 +157,24 @@ export function ActionPanel({
 
   return (
     <div className="space-y-6">
-      {/* Download/Share Section */}
+      {/* Download/Share Section - CV only gets PDF download */}
       <div className="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-          {isMobileDevice ? (
+          {activeView === "cover-letter" ? (
+            <svg
+              className="w-4 h-4 text-blue-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+          ) : isMobileDevice ? (
             <svg
               className="w-4 h-4 text-blue-600"
               fill="none"
@@ -189,7 +203,7 @@ export function ActionPanel({
               />
             </svg>
           )}
-          {isMobileDevice ? "Share" : "Download"}
+          {activeView === "cover-letter" ? "Copy" : isMobileDevice ? "Share" : "Download"}
         </h3>
 
         <div className="space-y-3">
@@ -199,7 +213,33 @@ export function ActionPanel({
             </p>
           )}
 
-          {isMobileDevice ? (
+          {/* Cover Letter - only show Copy Markdown, no PDF */}
+          {activeView === "cover-letter" ? (
+            <>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                Copy your cover letter and paste into your preferred editor to customize.
+              </p>
+              <button
+                onClick={onCopy}
+                className="w-full py-3 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  />
+                </svg>
+                {copied ? "✓ Copied!" : "Copy Cover Letter"}
+              </button>
+            </>
+          ) : isMobileDevice ? (
             // Mobile: Share or Publish to Share
             publishedUrl ? (
               <button
@@ -227,7 +267,7 @@ export function ActionPanel({
                         d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
                       />
                     </svg>
-                    Share {activeView === "cv" ? "CV" : "Cover Letter"}
+                    Share CV
                   </>
                 )}
               </button>
@@ -244,33 +284,35 @@ export function ActionPanel({
               </button>
             )
           ) : (
-            // Desktop: Download PDF
-            <button
-              onClick={handleDownloadPDF}
-              disabled={isDownloading}
-              className="w-full py-3 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              {isDownloading ? (
-                <>
-                  <span className="animate-spin">⏳</span>
-                  Generating PDF...
-                </>
-              ) : (
-                <>
-                  {!hasPaid && <LockIcon />}
-                  {activeView === "cv" ? "Download CV" : "Download Cover Letter"}
-                </>
-              )}
-            </button>
-          )}
+            // Desktop: Download PDF (CV only)
+            <>
+              <button
+                onClick={handleDownloadPDF}
+                disabled={isDownloading}
+                className="w-full py-3 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                {isDownloading ? (
+                  <>
+                    <span className="animate-spin">⏳</span>
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    {!hasPaid && <LockIcon />}
+                    Download CV
+                  </>
+                )}
+              </button>
 
-          {/* Copy Markdown */}
-          <button
-            onClick={onCopy}
-            className="w-full py-2.5 px-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium transition-colors"
-          >
-            {copied ? "✓ Copied!" : "Copy Markdown"}
-          </button>
+              {/* Copy Markdown */}
+              <button
+                onClick={onCopy}
+                className="w-full py-2.5 px-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm font-medium transition-colors"
+              >
+                {copied ? "✓ Copied!" : "Copy Markdown"}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
