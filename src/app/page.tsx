@@ -1,519 +1,56 @@
-"use client";
-
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { redirect } from "next/navigation";
 import Link from "next/link";
-import ReactMarkdown from "react-markdown";
+import { Hero, ExampleSection, HowItWorks, Features, Pricing } from "@/components/landing";
 import { AuthButton } from "@/components/AuthButton";
-import { ActionPanel } from "@/components/ActionPanel";
-import { ImportButtons } from "@/components/ImportButtons";
-import { URLImportModal } from "@/components/URLImportModal";
-import { GoogleDocsModal } from "@/components/GoogleDocsModal";
-import { JobAnalysis } from "@/components/JobAnalysis";
-import { JobDescriptionPanel } from "@/components/JobDescriptionPanel";
-import { MatchScore } from "@/components/MatchScore";
-import { CheckoutModal } from "@/components/CheckoutModal";
-import { authClient } from "@/lib/auth/client";
-import type { ParsedJob } from "@/app/api/parse-job/route";
-import type { MatchResult } from "@/app/api/match-score/route";
+import { authServer } from "@/lib/auth/server";
 
-export default function Home() {
-  const [background, setBackground] = useState("");
-  const [jobDescription, setJobDescription] = useState("");
-  const [output, setOutput] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [cvId, setCvId] = useState<string | undefined>();
-  const [hasPaid, setHasPaid] = useState(false);
-  const [showUrlModal, setShowUrlModal] = useState(false);
-  const [showGoogleDocsModal, setShowGoogleDocsModal] = useState(false);
-  const [parsedJob, setParsedJob] = useState<ParsedJob | null>(null);
-  const [coverLetter, setCoverLetter] = useState("");
-  const [isGeneratingCoverLetter, setIsGeneratingCoverLetter] = useState(false);
-  const [activeView, setActiveView] = useState<"cv" | "job-description" | "match-score" | "cover-letter">("cv");
-  const [matchResult, setMatchResult] = useState<MatchResult | null>(null);
-  const [showCheckout, setShowCheckout] = useState(false);
-  const outputRef = useRef<HTMLDivElement>(null);
-  const session = authClient.useSession();
-  const user = session.data?.user;
+export default async function LandingPage() {
+  const { data: session } = await authServer.getSession();
 
-  // Handle imported content
-  const handleImportContent = useCallback((content: string) => {
-    setBackground((prev) => (prev ? prev + "\n\n" + content : content));
-  }, []);
-
-  // Check payment status when user logs in
-  useEffect(() => {
-    // Test mode bypass
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("test") === "test123") {
-      setHasPaid(true);
-      return;
-    }
-
-    if (user) {
-      fetch("/api/user-status", { credentials: "include" })
-        .then((res) => res.json())
-        .then((data) => setHasPaid(data.hasPaid || false))
-        .catch(() => setHasPaid(false));
-    } else {
-      setHasPaid(false);
-    }
-  }, [user]);
-
-  const generate = useCallback(async () => {
-    if (!background.trim()) {
-      setError("Please paste your career information first");
-      return;
-    }
-
-    setIsGenerating(true);
-    setError("");
-    setOutput("");
-
-    try {
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ background, jobDescription }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate CV");
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response stream");
-
-      const decoder = new TextDecoder();
-      let fullOutput = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        fullOutput += chunk;
-        setOutput(fullOutput);
-
-        // Auto-scroll to bottom during generation
-        if (outputRef.current) {
-          outputRef.current.scrollTop = outputRef.current.scrollHeight;
-        }
-      }
-
-      // Save to database if logged in or in test mode
-      const urlParams = new URLSearchParams(window.location.search);
-      const testMode = urlParams.get("test") === "test123" ? "test123" : undefined;
-
-      if (user || testMode) {
-        // Strip suggestions section before saving - only save clean CV
-        const suggestionSeparator = /\n+(?:---\s*\n+)?## To Strengthen This CV/i;
-        const cleanCv = fullOutput.split(suggestionSeparator)[0]?.trim() || fullOutput;
-
-        const saveRes = await fetch("/api/save-cv", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            jobDescription: jobDescription || null,
-            generatedCv: cleanCv,
-            modelUsed: "claude-sonnet-4-20250514",
-            testMode,
-          }),
-        });
-        const saveData = await saveRes.json();
-        if (saveData.id) {
-          setCvId(saveData.id);
-        } else if (saveData.error) {
-          console.error("Failed to save CV:", saveData.error);
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [background, jobDescription, user]);
-
-  const generateCoverLetter = useCallback(async () => {
-    if (!output || !parsedJob) return;
-
-    setIsGeneratingCoverLetter(true);
-    setCoverLetter("");
-    setActiveView("cover-letter");
-
-    try {
-      const response = await fetch("/api/generate-cover-letter", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cv: output, parsedJob }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to generate cover letter");
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No response stream");
-
-      const decoder = new TextDecoder();
-      let fullOutput = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        fullOutput += chunk;
-        setCoverLetter(fullOutput);
-
-        if (outputRef.current) {
-          outputRef.current.scrollTop = outputRef.current.scrollHeight;
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate cover letter");
-      setActiveView("cv");
-    } finally {
-      setIsGeneratingCoverLetter(false);
-    }
-  }, [output, parsedJob]);
-
-  // Parse CV output to separate main content from improvement suggestions
-  const { cvContent, suggestions } = useMemo(() => {
-    if (!output) return { cvContent: "", suggestions: null };
-    // Match various formats: with or without ---, different spacing
-    const separator = /\n+(?:---\s*\n+)?## To Strengthen This CV/i;
-    const parts = output.split(separator);
-    return {
-      cvContent: parts[0]?.trim() || output,
-      suggestions: parts[1] ? `## To Strengthen This CV${parts[1]}` : null
-    };
-  }, [output]);
-
-  const copyToClipboard = useCallback(async () => {
-    let contentToCopy = "";
-    if (activeView === "cv") {
-      contentToCopy = cvContent; // Use parsed CV content without suggestions
-    } else if (activeView === "cover-letter") {
-      contentToCopy = coverLetter;
-    } else if (activeView === "job-description") {
-      contentToCopy = jobDescription;
-    }
-    if (!contentToCopy) return;
-    try {
-      await navigator.clipboard.writeText(contentToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError("Failed to copy to clipboard");
-    }
-  }, [cvContent, coverLetter, jobDescription, activeView]);
-
-  const clearAll = useCallback(() => {
-    setBackground("");
-    setJobDescription("");
-    setOutput("");
-    setCoverLetter("");
-    setError("");
-    setParsedJob(null);
-    setMatchResult(null);
-    setActiveView("cv");
-  }, []);
+  if (session?.user) {
+    redirect("/app");
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
       {/* Header */}
       <header className="border-b border-gray-200 dark:border-gray-800 bg-white/80 dark:bg-gray-950/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-2 group">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
               <svg className="w-5 h-5" viewBox="0 0 32 32" fill="none">
-                <path d="M7 5 L7 21 Q7 27 13 27 L14 27" stroke="white" strokeWidth="5" strokeLinecap="round" fill="none"/>
-                <path d="M25 5 L25 21 Q25 27 19 27 L18 27" stroke="white" strokeWidth="5" strokeLinecap="round" fill="none"/>
+                <path
+                  d="M7 5 L7 21 Q7 27 13 27 L14 27"
+                  stroke="white"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                <path
+                  d="M25 5 L25 21 Q25 27 19 27 L18 27"
+                  stroke="white"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  fill="none"
+                />
               </svg>
             </div>
-            <div>
-              <span className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
-                unplugged<span className="text-blue-600">.cv</span>
-              </span>
-            </div>
+            <span className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">
+              unplugged<span className="text-blue-600">.cv</span>
+            </span>
           </Link>
-
-          {/* Center tagline - hidden on mobile */}
-          <p className="hidden md:block text-sm text-gray-500 dark:text-gray-400 absolute left-1/2 -translate-x-1/2">
-            Your career, unplugged.
-          </p>
-
-          {/* Right side actions */}
-          <div className="flex items-center gap-2 sm:gap-4">
-            {output && (
-              <button
-                onClick={clearAll}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Start over
-              </button>
-            )}
-            <AuthButton />
-          </div>
+          <AuthButton />
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {!output ? (
-          /* Input View */
-          <div className="max-w-3xl mx-auto space-y-6">
-            {/* Main Input */}
-            <div>
-              <label
-                htmlFor="background"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                Your career story
-              </label>
-              <textarea
-                id="background"
-                value={background}
-                onChange={(e) => setBackground(e.target.value)}
-                placeholder="Paste anything here - your LinkedIn profile, an old CV, random notes about your work history, project descriptions... The AI will figure it out.
-
-Example:
-- 10 years in marketing, started at agencies, now head of growth at a startup
-- Launched 3 products that hit $1M ARR
-- Managed teams of 5-15 people
-- Good with data, SQL, some Python
-- MBA from State University 2015"
-                className="w-full h-64 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                disabled={isGenerating}
-              />
-              <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Don&apos;t worry about formatting. Paste LinkedIn exports, old
-                CVs, brain dumps - anything goes.
-              </p>
-
-              {/* Import Buttons */}
-              <ImportButtons
-                onGoogleDocsClick={() => setShowGoogleDocsModal(true)}
-                onUrlClick={() => setShowUrlModal(true)}
-                disabled={isGenerating}
-              />
-            </div>
-
-            {/* Job Description (Optional) */}
-            <div>
-              <label
-                htmlFor="job"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                Target job{" "}
-                <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <textarea
-                id="job"
-                value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
-                placeholder="Paste the job description you're applying for. The AI will tailor your CV to highlight relevant experience."
-                className="w-full h-32 px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                disabled={isGenerating}
-              />
-
-              {/* Job Analysis */}
-              <JobAnalysis jobDescription={jobDescription} onJobParsed={setParsedJob} />
-            </div>
-
-            {/* Error */}
-            {error && (
-              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400">
-                {error}
-              </div>
-            )}
-
-            {/* Generate Button */}
-            <button
-              onClick={generate}
-              disabled={isGenerating || !background.trim()}
-              className="w-full py-4 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-medium text-lg transition-colors flex items-center justify-center gap-2"
-            >
-              {isGenerating ? (
-                <>
-                  <span className="animate-spin">⏳</span>
-                  Generating your CV...
-                </>
-              ) : (
-                <>
-                  <span>✨</span>
-                  Generate My CV
-                </>
-              )}
-            </button>
-          </div>
-        ) : (
-          /* Output View */
-          <div className="grid lg:grid-cols-[1fr,340px] gap-8">
-            {/* Document Preview */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                {/* Toggle buttons */}
-                <div className="flex items-center gap-1 p-1 rounded-lg bg-gray-100 dark:bg-gray-800">
-                  {/* CV Tab */}
-                  <button
-                    onClick={() => setActiveView("cv")}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                      activeView === "cv"
-                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                    }`}
-                  >
-                    CV
-                    {output && (
-                      <span className="w-2 h-2 bg-green-500 rounded-full" />
-                    )}
-                  </button>
-                  {/* Job Description Tab */}
-                  <button
-                    onClick={() => setActiveView("job-description")}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                      activeView === "job-description"
-                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                    }`}
-                  >
-                    Job Description
-                    {parsedJob && (
-                      <span className="w-2 h-2 bg-green-500 rounded-full" />
-                    )}
-                  </button>
-                  {/* Match Score Tab */}
-                  <button
-                    onClick={() => setActiveView("match-score")}
-                    disabled={!parsedJob}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                      activeView === "match-score"
-                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    }`}
-                    title={!parsedJob ? "Analyze a job description first" : ""}
-                  >
-                    Match Score
-                    {matchResult && (
-                      <span className="w-2 h-2 bg-green-500 rounded-full" />
-                    )}
-                  </button>
-                  {/* Cover Letter Tab */}
-                  <button
-                    onClick={() => coverLetter ? setActiveView("cover-letter") : generateCoverLetter()}
-                    disabled={!parsedJob || isGeneratingCoverLetter}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                      activeView === "cover-letter"
-                        ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
-                        : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                    }`}
-                    title={!parsedJob ? "Analyze a job description first" : ""}
-                  >
-                    {isGeneratingCoverLetter && (
-                      <span className="animate-spin">⏳</span>
-                    )}
-                    Cover Letter
-                    {coverLetter && (
-                      <span className="w-2 h-2 bg-green-500 rounded-full" />
-                    )}
-                    {!coverLetter && parsedJob && !isGeneratingCoverLetter && (
-                      <span className="text-xs text-blue-600 dark:text-blue-400">+</span>
-                    )}
-                  </button>
-                </div>
-                <button
-                  onClick={() => {
-                    setOutput("");
-                    setCoverLetter("");
-                    setActiveView("cv");
-                  }}
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
-                >
-                  Edit & Regenerate
-                </button>
-              </div>
-
-              {activeView === "job-description" ? (
-                <div className="p-8 md:p-10 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm max-h-[70vh] overflow-y-auto">
-                  <JobDescriptionPanel
-                    jobDescription={jobDescription}
-                    setJobDescription={setJobDescription}
-                    parsedJob={parsedJob}
-                    setParsedJob={setParsedJob}
-                  />
-                </div>
-              ) : activeView === "match-score" ? (
-                <div className="p-6 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm max-h-[70vh] overflow-y-auto">
-                  <MatchScore
-                    cv={cvContent}
-                    parsedJob={parsedJob}
-                    hasPaid={hasPaid}
-                    onCheckout={() => setShowCheckout(true)}
-                    onMatchComplete={setMatchResult}
-                  />
-                </div>
-              ) : (
-                <>
-                  <div
-                    id="cv-preview"
-                    ref={outputRef}
-                    className="p-8 md:p-10 rounded-xl border border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm max-h-[70vh] overflow-y-auto"
-                  >
-                    <div className={activeView === "cv" ? "cv-prose" : "letter-prose"}>
-                      <ReactMarkdown>
-                        {activeView === "cv" ? cvContent : coverLetter}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-
-                  {/* Improvement Suggestions Card */}
-                  {activeView === "cv" && suggestions && !isGenerating && (
-                    <div className="mt-4 p-5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
-                      <div className="flex items-start gap-3">
-                        <span className="text-amber-600 dark:text-amber-400 text-xl flex-shrink-0">💡</span>
-                        <div className="prose prose-sm max-w-none text-amber-900 dark:text-amber-100 prose-headings:text-amber-800 dark:prose-headings:text-amber-200 prose-headings:text-base prose-headings:font-semibold prose-headings:mt-0 prose-headings:mb-3 prose-p:text-amber-800 dark:prose-p:text-amber-200 prose-li:text-amber-800 dark:prose-li:text-amber-200 prose-ol:my-2 prose-li:my-1">
-                          <ReactMarkdown>{suggestions}</ReactMarkdown>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {(isGenerating || isGeneratingCoverLetter) && (
-                <p className="text-sm text-gray-500 dark:text-gray-400 animate-pulse">
-                  {isGeneratingCoverLetter ? "Writing cover letter..." : "Still writing..."}
-                </p>
-              )}
-            </div>
-
-            {/* Action Panel */}
-            <div className="lg:sticky lg:top-20 lg:self-start">
-              <ActionPanel
-                hasPaid={hasPaid}
-                isLoggedIn={!!user}
-                cvId={cvId}
-                onCopy={copyToClipboard}
-                copied={copied}
-                onCheckout={() => setShowCheckout(true)}
-                activeView={activeView}
-              />
-            </div>
-          </div>
-        )}
-      </div>
+      <Hero />
+      <ExampleSection />
+      <HowItWorks />
+      <Features />
+      <Pricing />
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 dark:border-gray-800 mt-16">
+      <footer className="border-t border-gray-200 dark:border-gray-800">
         <div className="max-w-6xl mx-auto px-4 py-8">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -550,27 +87,6 @@ Example:
           </div>
         </div>
       </footer>
-
-      {/* Import Modals */}
-      <URLImportModal
-        isOpen={showUrlModal}
-        onClose={() => setShowUrlModal(false)}
-        onImport={handleImportContent}
-      />
-      <GoogleDocsModal
-        isOpen={showGoogleDocsModal}
-        onClose={() => setShowGoogleDocsModal(false)}
-        onImport={handleImportContent}
-      />
-      <CheckoutModal
-        isOpen={showCheckout}
-        onClose={() => setShowCheckout(false)}
-        onComplete={() => {
-          setShowCheckout(false);
-          setHasPaid(true);
-        }}
-        cvId={cvId}
-      />
     </main>
   );
 }

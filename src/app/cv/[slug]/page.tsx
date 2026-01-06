@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const cv = await getCV(slug);
 
-  if (!cv) {
+  if (!cv || !cv.generatedCv) {
     return {
       title: "CV Not Found | unplugged.cv",
     };
@@ -55,7 +55,7 @@ export default async function PublicCVPage({ params }: PageProps) {
   const { slug } = await params;
   const cv = await getCV(slug);
 
-  if (!cv) {
+  if (!cv || !cv.generatedCv) {
     notFound();
   }
 

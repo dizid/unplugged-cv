@@ -11,21 +11,36 @@ import {
 export const userProfiles = pgTable("user_profiles", {
   id: uuid("id").primaryKey(), // matches Neon Auth user id
   hasPaid: boolean("has_paid").default(false).notNull(),
+  careerBackground: text("career_background"),
+  careerBackgroundUpdatedAt: timestamp("career_background_updated_at"),
+  applicationCount: integer("application_count").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// CV generations
+// CV generations / Applications
 export const cvGenerations = pgTable("cv_generations", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => userProfiles.id),
   jobDescription: text("job_description"),
-  generatedCv: text("generated_cv").notNull(),
-  modelUsed: text("model_used").notNull(),
-  title: text("title"), // for CV selector, e.g., "Software Engineer CV"
-  slug: text("slug").unique(), // for public URL, e.g., "marc-de-ruijter"
+  generatedCv: text("generated_cv"),
+  modelUsed: text("model_used"),
+  title: text("title"),
+  slug: text("slug").unique(),
   isPublished: boolean("is_published").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Application-specific fields
+  jobTitle: text("job_title"),
+  companyName: text("company_name"),
+  jobUrl: text("job_url"),
+  parsedJob: text("parsed_job"), // JSON string
+  coverLetter: text("cover_letter"),
+  matchScore: integer("match_score"),
+  matchDetails: text("match_details"), // JSON string
+  status: text("status").default("draft").notNull(),
+  appliedAt: timestamp("applied_at"),
+  notes: text("notes"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Payment records

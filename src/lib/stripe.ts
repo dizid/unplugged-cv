@@ -15,8 +15,8 @@ export function getStripe(): Stripe {
   return _stripe;
 }
 
-// One-time payment for all premium features ($10)
-export const PRICE_AMOUNT = 1000; // $10.00 in cents
+// One-time payment for all premium features ($19)
+export const PRICE_AMOUNT = 1900; // $19.00 in cents
 export const PRICE_CURRENCY = "usd";
 
 export async function createCheckoutSession(
@@ -32,10 +32,7 @@ export async function createCheckoutSession(
       {
         price_data: {
           currency: PRICE_CURRENCY,
-          product_data: {
-            name: "CV Builder Premium",
-            description: "PDF download, public CV page, save history - lifetime access",
-          },
+          product: process.env.STRIPE_PRODUCT_ID!,
           unit_amount: PRICE_AMOUNT,
         },
         quantity: 1,

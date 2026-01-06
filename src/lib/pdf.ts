@@ -269,3 +269,126 @@ export async function generatePDF(
     printWindow.print();
   }, 300);
 }
+
+// Helper function to print CV from markdown content
+export function printCV(markdown: string) {
+  printMarkdownDocument(markdown, "cv.pdf", "cv");
+}
+
+// Helper function to print cover letter from markdown content
+export function printCoverLetter(markdown: string) {
+  printMarkdownDocument(markdown, "cover-letter.pdf", "letter");
+}
+
+// Print markdown document by converting to HTML safely
+function printMarkdownDocument(
+  markdown: string,
+  filename: string,
+  documentType: DocumentType
+) {
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    throw new Error("Could not open print window. Please allow popups.");
+  }
+
+  const doc = printWindow.document;
+
+  // Create head with styles based on document type
+  const style = doc.createElement("style");
+  style.textContent = documentType === "cv" ? cvStyles : letterStyles;
+  doc.head.appendChild(style);
+
+  // Set title
+  const title = doc.createElement("title");
+  title.textContent = documentType === "cv" ? "CV" : "Cover Letter";
+  doc.head.appendChild(title);
+
+  // Convert markdown to DOM elements safely
+  const elements = markdownToElements(markdown, doc);
+  elements.forEach((el) => doc.body.appendChild(el));
+
+  // Print after brief delay
+  setTimeout(() => {
+    printWindow.print();
+  }, 300);
+}
+
+// Convert markdown to DOM elements safely (no innerHTML)
+function markdownToElements(markdown: string, doc: Document): HTMLElement[] {
+  const lines = markdown.split("\n");
+  const elements: HTMLElement[] = [];
+  let currentList: HTMLUListElement | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      currentList = null;
+      continue;
+    }
+
+    // Headers
+    if (trimmed.startsWith("### ")) {
+      currentList = null;
+      const h3 = doc.createElement("h3");
+      h3.textContent = trimmed.slice(4);
+      elements.push(h3);
+    } else if (trimmed.startsWith("## ")) {
+      currentList = null;
+      const h2 = doc.createElement("h2");
+      h2.textContent = trimmed.slice(3);
+      elements.push(h2);
+    } else if (trimmed.startsWith("# ")) {
+      currentList = null;
+      const h1 = doc.createElement("h1");
+      h1.textContent = trimmed.slice(2);
+      elements.push(h1);
+    }
+    // List items
+    else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      if (!currentList) {
+        currentList = doc.createElement("ul");
+        elements.push(currentList);
+      }
+      const li = doc.createElement("li");
+      appendFormattedText(li, trimmed.slice(2), doc);
+      currentList.appendChild(li);
+    }
+    // Regular paragraph
+    else {
+      currentList = null;
+      const p = doc.createElement("p");
+      appendFormattedText(p, trimmed, doc);
+      elements.push(p);
+    }
+  }
+
+  return elements;
+}
+
+// Append text with basic formatting (bold, links) safely
+function appendFormattedText(
+  parent: HTMLElement,
+  text: string,
+  doc: Document
+) {
+  // Process bold (**text**) and links [text](url)
+  const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g);
+
+  for (const part of parts) {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      const strong = doc.createElement("strong");
+      strong.textContent = part.slice(2, -2);
+      parent.appendChild(strong);
+    } else if (part.startsWith("[") && part.includes("](")) {
+      const match = part.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (match) {
+        const a = doc.createElement("a");
+        a.textContent = match[1];
+        a.href = match[2];
+        parent.appendChild(a);
+      }
+    } else if (part) {
+      parent.appendChild(doc.createTextNode(part));
+    }
+  }
+}
