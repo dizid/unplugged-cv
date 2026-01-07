@@ -8,14 +8,22 @@ interface StepJobProps {
   setJobDescription: (value: string) => void;
   parsedJob: ParsedJob | null;
   setParsedJob: (job: ParsedJob | null) => void;
+  jobTitle: string;
+  setJobTitle: (value: string) => void;
+  companyName: string;
+  setCompanyName: (value: string) => void;
   onNext: () => void;
 }
 
 export function StepJob({
   jobDescription,
   setJobDescription,
-  parsedJob,
+  parsedJob: _parsedJob, // eslint-disable-line @typescript-eslint/no-unused-vars
   setParsedJob,
+  jobTitle,
+  setJobTitle,
+  companyName,
+  setCompanyName,
   onNext,
 }: StepJobProps) {
   return (
@@ -38,6 +46,34 @@ export function StepJob({
 
       {/* Job Analysis */}
       <JobAnalysis jobDescription={jobDescription} onJobParsed={setParsedJob} />
+
+      {/* Manual job title and company inputs */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Job Title
+          </label>
+          <input
+            type="text"
+            value={jobTitle}
+            onChange={(e) => setJobTitle(e.target.value)}
+            placeholder="e.g., Senior Software Engineer"
+            className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Company
+          </label>
+          <input
+            type="text"
+            value={companyName}
+            onChange={(e) => setCompanyName(e.target.value)}
+            placeholder="e.g., Acme Corp"
+            className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
+          />
+        </div>
+      </div>
 
       <div className="flex justify-end">
         <button

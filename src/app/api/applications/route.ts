@@ -13,7 +13,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { jobDescription, parsedJob, background, generatedCv, testMode } =
+    const { jobDescription, parsedJob, jobTitle, companyName, background, generatedCv, testMode } =
       await request.json();
 
     const db = getDb();
@@ -36,8 +36,8 @@ export async function POST(request: Request) {
         .returning();
     }
 
-    // Check limits (with test mode bypass)
-    const isTestMode = testMode === "test123";
+    // Check limits (with test mode bypass - set TEST_MODE_SECRET env var)
+    const isTestMode = process.env.TEST_MODE_SECRET && testMode === process.env.TEST_MODE_SECRET;
     const appCount = profile.applicationCount || 0;
 
     if (!isTestMode && !profile.hasPaid && appCount >= FREE_LIMIT) {
@@ -59,14 +59,16 @@ export async function POST(request: Request) {
         .where(eq(userProfiles.id, session.user.id));
     }
 
-    // Create the application
+    // Create application first, then increment counter
+    // Note: neon-http driver doesn't support transactions, so we do this sequentially
+    // If app creation succeeds but counter fails, user just has an uncounted app (not blocking)
     const [app] = await db
       .insert(cvGenerations)
       .values({
         userId: session.user.id,
         jobDescription,
-        jobTitle: parsedJob?.jobTitle || null,
-        companyName: parsedJob?.company || null,
+        jobTitle: jobTitle || parsedJob?.title || null,
+        companyName: companyName || parsedJob?.company || null,
         parsedJob: parsedJob ? JSON.stringify(parsedJob) : null,
         generatedCv: generatedCv || null,
         modelUsed: "claude-sonnet-4-20250514",
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
       })
       .returning();
 
-    // Increment application count
+    // Increment application count (best effort - app is already created)
     await db
       .update(userProfiles)
       .set({
@@ -83,7 +85,9 @@ export async function POST(request: Request) {
       })
       .where(eq(userProfiles.id, session.user.id));
 
-    return NextResponse.json({ id: app.id, success: true });
+    const result = app;
+
+    return NextResponse.json({ id: result.id, success: true });
   } catch (error) {
     console.error("Error creating application:", error);
     return NextResponse.json(
