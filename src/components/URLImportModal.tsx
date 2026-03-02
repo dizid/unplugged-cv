@@ -90,6 +90,7 @@ export function URLImportModal({
           <button
             onClick={handleClose}
             disabled={isLoading}
+            aria-label="Close import modal"
             className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors disabled:opacity-50"
           >
             <svg
@@ -97,6 +98,7 @@ export function URLImportModal({
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -149,7 +151,7 @@ export function URLImportModal({
           >
             {isLoading ? (
               <>
-                <svg className="w-4 h-4 animate-spin\" fill="none" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                   <circle
                     className="opacity-25"
                     cx="12"

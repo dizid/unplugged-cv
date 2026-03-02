@@ -232,7 +232,6 @@ const letterStyles = `
 
 export async function generatePDF(
   elementId: string,
-  _filename: string = "cv.pdf",
   documentType: DocumentType = "cv"
 ) {
   const element = document.getElementById(elementId);

@@ -56,7 +56,7 @@ export function MatchScore({ cv, parsedJob, hasPaid, onCheckout, onMatchComplete
     } finally {
       setIsAnalyzing(false);
     }
-  }, [cv, parsedJob, hasPaid, onCheckout]);
+  }, [cv, parsedJob, hasPaid, onCheckout, onMatchComplete]);
 
   // Don't show if no job description analyzed
   if (!parsedJob) {

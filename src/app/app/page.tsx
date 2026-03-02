@@ -1,84 +1,129 @@
 import { authServer } from "@/lib/auth/server";
-import { getDb, cvGenerations, userProfiles } from "@/lib/db";
+import { getDb, cvGenerations, userProfiles, reminders, interviews } from "@/lib/db";
 import { eq, desc } from "drizzle-orm";
 import Link from "next/link";
-import { ApplicationCard, EmptyState } from "@/components/dashboard";
+import {
+  ApplicationCard,
+  EmptyState,
+  DashboardStats,
+  PipelineView,
+} from "@/components/dashboard";
+import { ViewToggle } from "./ViewToggle";
 
-const FREE_LIMIT = 3;
+const FREE_LIMIT = 5;
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
   const { data: session } = await authServer.getSession();
 
   if (!session?.user) {
     return null;
   }
 
+  const params = await searchParams;
+  const view = params.view || "list";
   const db = getDb();
 
-  const [apps, profileResult] = await Promise.all([
-    db
-      .select()
-      .from(cvGenerations)
-      .where(eq(cvGenerations.userId, session.user.id))
-      .orderBy(desc(cvGenerations.createdAt)),
+  // Get all application IDs for the user first
+  const apps = await db
+    .select()
+    .from(cvGenerations)
+    .where(eq(cvGenerations.userId, session.user.id))
+    .orderBy(desc(cvGenerations.createdAt));
+
+  const appIds = apps.map((a) => a.id);
+
+  // Fetch profile, reminders, and interviews in parallel
+  const [profileResult, userReminders, userInterviews] = await Promise.all([
     db
       .select()
       .from(userProfiles)
       .where(eq(userProfiles.id, session.user.id))
       .limit(1),
+    db.select().from(reminders).where(eq(reminders.userId, session.user.id)),
+    appIds.length > 0
+      ? db.select().from(interviews)
+      : Promise.resolve([]),
   ]);
+
+  // Filter interviews for user's applications
+  const filteredInterviews = userInterviews.filter((i) =>
+    appIds.includes(i.applicationId)
+  );
 
   const profile = profileResult[0];
   const hasPaid = profile?.hasPaid || false;
+  const isSubscribed = profile?.subscriptionStatus === "active";
   const appCount = apps.length;
 
+  // Filter non-archived apps for display
+  const visibleApps = apps.filter((app) => !app.archived);
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Your Applications
           </h1>
-          {!hasPaid && (
+          {!hasPaid && !isSubscribed && (
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {appCount} of {FREE_LIMIT} free applications used
             </p>
           )}
         </div>
-        <Link
-          href="/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-        >
-          New Application
-        </Link>
+        <div className="flex items-center gap-3">
+          <ViewToggle currentView={view} />
+          <Link
+            href="/new"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          >
+            New Application
+          </Link>
+        </div>
       </div>
 
-      {/* Application List */}
-      {apps.length === 0 ? (
+      {/* Stats */}
+      {visibleApps.length > 0 && (
+        <DashboardStats
+          applications={apps}
+          reminders={userReminders}
+          interviews={filteredInterviews}
+        />
+      )}
+
+      {/* Application List/Pipeline */}
+      {visibleApps.length === 0 ? (
         <EmptyState />
+      ) : view === "pipeline" ? (
+        <PipelineView applications={visibleApps} />
       ) : (
         <div className="space-y-3">
-          {apps.map((app) => (
+          {visibleApps.map((app) => (
             <ApplicationCard key={app.id} application={app} />
           ))}
         </div>
       )}
 
       {/* Upgrade Banner */}
-      {!hasPaid && appCount >= FREE_LIMIT && (
-        <div className="mt-8 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+      {!hasPaid && !isSubscribed && appCount >= FREE_LIMIT && (
+        <div className="mt-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
           <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
             Upgrade to Pro
           </h3>
           <p className="text-sm text-blue-700 dark:text-blue-300 mb-4">
-            Get unlimited applications, PDF exports, cover letters, and more.
+            Get unlimited applications, pipeline view, interview tracking,
+            reminders, and more.
           </p>
           <Link
             href="/new"
             className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
           >
-            Upgrade for $19
+            Upgrade Now
           </Link>
         </div>
       )}

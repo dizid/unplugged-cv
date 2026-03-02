@@ -23,11 +23,7 @@ export async function POST(request: Request) {
         {
           price_data: {
             currency: PRICE_CURRENCY,
-            product_data: {
-              name: "CV Builder Premium",
-              description:
-                "PDF download, public CV page, save history - lifetime access",
-            },
+            product: process.env.STRIPE_PRODUCT_ID!,
             unit_amount: PRICE_AMOUNT,
           },
           quantity: 1,

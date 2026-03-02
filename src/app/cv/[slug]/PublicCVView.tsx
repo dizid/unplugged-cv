@@ -24,7 +24,7 @@ export function PublicCVView({ cv }: PublicCVViewProps) {
   const handleDownload = useCallback(async () => {
     setIsDownloading(true);
     try {
-      await generatePDF("public-cv-content", "cv.pdf");
+      await generatePDF("public-cv-content", "cv");
     } catch (err) {
       console.error("PDF generation failed:", err);
     } finally {

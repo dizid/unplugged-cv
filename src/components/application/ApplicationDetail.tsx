@@ -4,8 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import { StatusSelector } from "./StatusSelector";
+import { Timeline } from "./Timeline";
+import { InterviewsSection } from "./InterviewsSection";
+import { ReminderModal } from "./ReminderModal";
 import { printCV, printCoverLetter } from "@/lib/pdf";
-import type { CvGeneration } from "@/lib/db/schema";
+import type { CvGeneration, Reminder } from "@/lib/db/schema";
 
 interface ApplicationDetailProps {
   application: CvGeneration;
@@ -21,6 +24,7 @@ export function ApplicationDetail({
   const [publishSlug, setPublishSlug] = useState(application.slug || "");
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState("");
+  const [showReminderModal, setShowReminderModal] = useState(false);
 
   const copyToClipboard = async (content: string) => {
     try {
@@ -241,11 +245,27 @@ export function ApplicationDetail({
             </div>
           )}
 
-          {/* Notes */}
+          {/* Interviews */}
           <div className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
-            <h3 className="font-semibold mb-3 text-gray-900 dark:text-white">
-              Notes
-            </h3>
+            <InterviewsSection applicationId={application.id} />
+          </div>
+
+          {/* Notes & Reminder */}
+          <div className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900 dark:text-white">
+                Notes
+              </h3>
+              <button
+                onClick={() => setShowReminderModal(true)}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                Remind
+              </button>
+            </div>
             <textarea
               defaultValue={application.notes || ""}
               placeholder="Add notes about this application..."
@@ -263,8 +283,25 @@ export function ApplicationDetail({
               }}
             />
           </div>
+
+          {/* Timeline */}
+          <div className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+            <h3 className="font-semibold mb-3 text-gray-900 dark:text-white">
+              Activity
+            </h3>
+            <Timeline applicationId={application.id} />
+          </div>
         </div>
       </div>
+
+      {/* Reminder Modal */}
+      {showReminderModal && (
+        <ReminderModal
+          applicationId={application.id}
+          onClose={() => setShowReminderModal(false)}
+          onSave={() => setShowReminderModal(false)}
+        />
+      )}
     </div>
   );
 }

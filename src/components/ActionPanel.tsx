@@ -46,9 +46,8 @@ export function ActionPanel({
 
     setIsDownloading(true);
     try {
-      const filename = activeView === "cv" ? "my-cv.pdf" : "cover-letter.pdf";
       const docType = activeView === "cv" ? "cv" : "letter";
-      await generatePDF("cv-preview", filename, docType);
+      await generatePDF("cv-preview", docType);
     } catch (err) {
       console.error("PDF generation failed:", err);
     } finally {
@@ -80,9 +79,9 @@ export function ActionPanel({
     setPublishError("");
 
     try {
-      // Check for test mode
+      // Check for test mode (server validates against TEST_MODE_SECRET env var)
       const urlParams = new URLSearchParams(window.location.search);
-      const testMode = urlParams.get("test") === "test123" ? "test123" : undefined;
+      const testMode = urlParams.get("test") || undefined;
 
       const response = await fetch("/api/publish-cv", {
         method: "POST",

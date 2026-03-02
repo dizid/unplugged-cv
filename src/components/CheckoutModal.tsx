@@ -53,6 +53,7 @@ export function CheckoutModal({
           </h2>
           <button
             onClick={onClose}
+            aria-label="Close checkout"
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
           >
             <svg
@@ -60,6 +61,7 @@ export function CheckoutModal({
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"

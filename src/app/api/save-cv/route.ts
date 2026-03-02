@@ -8,8 +8,8 @@ export async function POST(request: Request) {
     const { data: session } = await authServer.getSession();
     const { jobDescription, generatedCv, modelUsed, testMode } = await request.json();
 
-    // Test mode bypass for development
-    const isTestMode = testMode === "test123";
+    // Test mode bypass for development (set TEST_MODE_SECRET env var)
+    const isTestMode = process.env.NODE_ENV === "development" && process.env.TEST_MODE_SECRET && testMode === process.env.TEST_MODE_SECRET;
     const testUserId = "test-user-00000000-0000-0000-0000-000000000000";
 
     if (!session?.user && !isTestMode) {

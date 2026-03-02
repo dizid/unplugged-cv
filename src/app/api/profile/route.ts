@@ -21,14 +21,11 @@ export async function GET() {
 
     if (!profile) {
       // Create profile if it doesn't exist
-      const [newProfile] = await db
-        .insert(userProfiles)
-        .values({
-          id: session.user.id,
-          hasPaid: false,
-          applicationCount: 0,
-        })
-        .returning();
+      await db.insert(userProfiles).values({
+        id: session.user.id,
+        hasPaid: false,
+        applicationCount: 0,
+      });
 
       return NextResponse.json({
         careerBackground: null,

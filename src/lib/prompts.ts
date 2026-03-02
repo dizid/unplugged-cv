@@ -99,6 +99,13 @@ If the user includes a target job:
 - Mirror key requirements in the skills section
 - Use similar terminology (but don't keyword stuff)
 
+## LANGUAGE
+
+- **Always respond in the same language as the user's input**
+- If the background/CV is in Dutch, write the CV in Dutch
+- If the job description is in a different language than the background, use the background's language
+- Keep professional terminology natural in that language
+
 ## OUTPUT FORMAT
 
 - Use clean markdown

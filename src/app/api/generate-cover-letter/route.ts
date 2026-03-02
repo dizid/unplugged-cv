@@ -1,8 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { NextResponse } from "next/server";
+import { authServer } from "@/lib/auth/server";
+import { getDb, userProfiles } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { getEffectiveTier } from "@/lib/stripe";
 import type { ParsedJob } from "../parse-job/route";
 import type { MatchResult } from "../match-score/route";
-
-export const runtime = "edge";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -42,6 +45,12 @@ You write cover letters that are:
 - Clear call to action
 - No "I look forward to hearing from you" clichés
 
+## LANGUAGE
+
+- **Always write in the same language as the CV**
+- If the CV is in Dutch, write the cover letter in Dutch
+- Keep professional terminology natural in that language
+
 ## RULES
 
 - Never invent experience not in the CV
@@ -63,6 +72,28 @@ interface CoverLetterRequest {
 
 export async function POST(request: Request) {
   try {
+    // Auth check
+    const { data: session } = await authServer.getSession();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Tier check — cover letters are a Pro feature
+    const db = getDb();
+    const [profile] = await db
+      .select({ hasPaid: userProfiles.hasPaid, subscriptionStatus: userProfiles.subscriptionStatus })
+      .from(userProfiles)
+      .where(eq(userProfiles.id, session.user.id))
+      .limit(1);
+
+    const tier = getEffectiveTier(profile?.hasPaid || false, profile?.subscriptionStatus);
+    if (tier === "free") {
+      return NextResponse.json(
+        { error: "Pro subscription required for cover letters" },
+        { status: 403 }
+      );
+    }
+
     const { cv, parsedJob, matchResult } = await request.json() as CoverLetterRequest;
 
     if (!cv || typeof cv !== "string" || cv.trim().length < 100) {

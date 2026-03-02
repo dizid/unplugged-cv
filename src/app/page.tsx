@@ -5,7 +5,13 @@ import { AuthButton } from "@/components/AuthButton";
 import { authServer } from "@/lib/auth/server";
 
 export default async function LandingPage() {
-  const { data: session } = await authServer.getSession();
+  let session = null;
+  try {
+    const result = await authServer.getSession();
+    session = result.data;
+  } catch {
+    // Auth service unavailable - show landing page
+  }
 
   if (session?.user) {
     redirect("/app");

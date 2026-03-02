@@ -141,10 +141,12 @@ export function JobAnalysis({ jobDescription, onJobParsed }: JobAnalysisProps) {
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
+        aria-expanded={isExpanded}
+        aria-label={`${isExpanded ? "Collapse" : "Expand"} job analysis`}
         className="w-full px-4 py-3 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-700"
       >
         <div className="flex items-center gap-3">
-          <span className="text-lg">📊</span>
+          <span className="text-lg" aria-hidden="true">📊</span>
           <div className="text-left">
             <h3 className="font-semibold text-gray-900 dark:text-white">
               Job Analysis
@@ -159,6 +161,7 @@ export function JobAnalysis({ jobDescription, onJobParsed }: JobAnalysisProps) {
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>

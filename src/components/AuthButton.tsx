@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { authClient } from "@/lib/auth/client";
 import { AuthView } from "@neondatabase/auth/react";
 
@@ -15,14 +16,17 @@ export function AuthButton() {
     const user = session.data.user;
     return (
       <div className="flex items-center gap-2">
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800">
+        <Link
+          href="/app/account"
+          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        >
           <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-medium">
             {user.email?.charAt(0).toUpperCase()}
           </div>
           <span className="text-sm text-gray-700 dark:text-gray-300 max-w-[120px] truncate">
             {user.email}
           </span>
-        </div>
+        </Link>
         <button
           onClick={() => authClient.signOut()}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-800 transition-colors"

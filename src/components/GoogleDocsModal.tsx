@@ -177,6 +177,7 @@ export function GoogleDocsModal({
           <button
             onClick={handleClose}
             disabled={isLoading}
+            aria-label="Close Google Docs import"
             className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors disabled:opacity-50"
           >
             <svg
@@ -184,6 +185,7 @@ export function GoogleDocsModal({
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"

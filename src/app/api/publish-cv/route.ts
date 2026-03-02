@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authServer } from "@/lib/auth/server";
 import { getDb, cvGenerations, userProfiles } from "@/lib/db";
 import { eq, and } from "drizzle-orm";
+import { getEffectiveTier } from "@/lib/stripe";
 
 export async function POST(request: Request) {
   try {
@@ -34,19 +35,20 @@ export async function POST(request: Request) {
 
     const db = getDb();
 
-    // Check if user has paid (with test mode bypass)
-    const isTestMode = testMode === "test123";
+    // Check if user has paid (with test mode bypass - set TEST_MODE_SECRET env var)
+    const isTestMode = process.env.NODE_ENV === "development" && process.env.TEST_MODE_SECRET && testMode === process.env.TEST_MODE_SECRET;
 
     if (!isTestMode) {
       const profile = await db
-        .select({ hasPaid: userProfiles.hasPaid })
+        .select({ hasPaid: userProfiles.hasPaid, subscriptionStatus: userProfiles.subscriptionStatus })
         .from(userProfiles)
         .where(eq(userProfiles.id, session.user.id))
         .limit(1);
 
-      if (!profile[0]?.hasPaid) {
+      const tier = getEffectiveTier(profile[0]?.hasPaid || false, profile[0]?.subscriptionStatus);
+      if (tier === "free") {
         return NextResponse.json(
-          { error: "Premium subscription required" },
+          { error: "Pro subscription required" },
           { status: 403 }
         );
       }

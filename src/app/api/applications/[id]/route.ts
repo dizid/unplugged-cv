@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { authServer } from "@/lib/auth/server";
-import { getDb, cvGenerations } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { getDb, cvGenerations, userProfiles } from "@/lib/db";
+import { eq, and, sql } from "drizzle-orm";
+import { logApplicationEvent } from "@/lib/events";
 
 export async function GET(
   request: Request,
@@ -79,11 +80,34 @@ export async function PATCH(
     if (body.appliedAt !== undefined) updateData.appliedAt = body.appliedAt ? new Date(body.appliedAt) : null;
     if (body.generatedCv !== undefined) updateData.generatedCv = body.generatedCv;
     if (body.coverLetter !== undefined) updateData.coverLetter = body.coverLetter;
+    if (body.nextAction !== undefined) updateData.nextAction = body.nextAction;
+    if (body.nextActionDueAt !== undefined) updateData.nextActionDueAt = body.nextActionDueAt ? new Date(body.nextActionDueAt) : null;
+    if (body.priority !== undefined) updateData.priority = body.priority;
+    if (body.archived !== undefined) updateData.archived = body.archived;
 
     await db
       .update(cvGenerations)
       .set(updateData)
       .where(eq(cvGenerations.id, id));
+
+    // Log status change event
+    if (body.status !== undefined && body.status !== existing.status) {
+      await logApplicationEvent({
+        applicationId: id,
+        eventType: "status_change",
+        fromStatus: existing.status,
+        toStatus: body.status,
+      });
+    }
+
+    // Log note added event
+    if (body.notes !== undefined && body.notes !== existing.notes && body.notes) {
+      await logApplicationEvent({
+        applicationId: id,
+        eventType: "note_added",
+        metadata: { noteLength: body.notes.length },
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -123,6 +147,15 @@ export async function DELETE(
     }
 
     await db.delete(cvGenerations).where(eq(cvGenerations.id, id));
+
+    // Decrement application count
+    await db
+      .update(userProfiles)
+      .set({
+        applicationCount: sql`GREATEST(${userProfiles.applicationCount} - 1, 0)`,
+        updatedAt: new Date(),
+      })
+      .where(eq(userProfiles.id, session.user.id));
 
     return NextResponse.json({ success: true });
   } catch (error) {

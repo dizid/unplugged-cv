@@ -10,10 +10,10 @@ export default function SignInPage() {
   const router = useRouter();
   const session = authClient.useSession();
 
-  // Redirect to home if already logged in
+  // Redirect to app if already logged in
   useEffect(() => {
     if (session.data?.user) {
-      router.push("/");
+      router.push("/app");
     }
   }, [session.data?.user, router]);
 

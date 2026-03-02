@@ -8,7 +8,14 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { data: session } = await authServer.getSession();
+  let session;
+  try {
+    const result = await authServer.getSession();
+    session = result.data;
+  } catch {
+    // Auth service unavailable - redirect to home
+    redirect("/");
+  }
 
   if (!session?.user) {
     redirect("/");
@@ -48,18 +55,6 @@ export default async function AppLayout({
                 className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
               >
                 Applications
-              </Link>
-              <Link
-                href="/app/profile"
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-              >
-                Profile
-              </Link>
-              <Link
-                href="/app/account"
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-              >
-                Account
               </Link>
             </nav>
           </div>

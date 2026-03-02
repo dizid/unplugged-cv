@@ -1,7 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { NextResponse } from "next/server";
+import { authServer } from "@/lib/auth/server";
+import { getDb, userProfiles } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { getEffectiveTier } from "@/lib/stripe";
 import type { ParsedJob } from "../parse-job/route";
-
-export const runtime = "edge";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -47,6 +50,11 @@ Return a JSON object with this exact structure:
   "talkingPoints": ["<interview angle based on strong matches>"]
 }
 
+## LANGUAGE
+- Write summary, evidence, gaps, and talkingPoints in the same language as the CV
+- If the CV is in Dutch, write those fields in Dutch
+- Field names stay in English (for JSON structure)
+
 ## RULES
 - Only return valid JSON, no markdown
 - Evidence should be a brief quote or paraphrase from the CV
@@ -56,6 +64,28 @@ Return a JSON object with this exact structure:
 
 export async function POST(request: Request) {
   try {
+    // Auth check
+    const { data: session } = await authServer.getSession();
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Tier check — match score is a Pro feature
+    const db = getDb();
+    const [profile] = await db
+      .select({ hasPaid: userProfiles.hasPaid, subscriptionStatus: userProfiles.subscriptionStatus })
+      .from(userProfiles)
+      .where(eq(userProfiles.id, session.user.id))
+      .limit(1);
+
+    const tier = getEffectiveTier(profile?.hasPaid || false, profile?.subscriptionStatus);
+    if (tier === "free") {
+      return NextResponse.json(
+        { error: "Pro subscription required for match score" },
+        { status: 403 }
+      );
+    }
+
     const { cv, parsedJob } = await request.json() as {
       cv: string;
       parsedJob: ParsedJob;

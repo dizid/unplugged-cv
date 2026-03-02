@@ -15,36 +15,69 @@ export function getStripe(): Stripe {
   return _stripe;
 }
 
-// One-time payment for all premium features ($19)
+// Legacy one-time payment (still supported for existing users)
 export const PRICE_AMOUNT = 1900; // $19.00 in cents
 export const PRICE_CURRENCY = "usd";
 
-export async function createCheckoutSession(
-  userId: string,
-  userEmail: string,
-  cvId?: string
-) {
-  const session = await getStripe().checkout.sessions.create({
-    mode: "payment",
-    payment_method_types: ["card"],
-    customer_email: userEmail,
-    line_items: [
-      {
-        price_data: {
-          currency: PRICE_CURRENCY,
-          product: process.env.STRIPE_PRODUCT_ID!,
-          unit_amount: PRICE_AMOUNT,
-        },
-        quantity: 1,
-      },
-    ],
-    metadata: {
-      userId,
-      cvId: cvId || "",
-    },
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}?success=true&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}?canceled=true`,
-  });
+// Subscription tiers (simplified: Free + Pro only)
+export type SubscriptionTier = "free" | "pro";
 
-  return session;
+export const SUBSCRIPTION_PRICES = {
+  pro: {
+    monthly: process.env.STRIPE_PRICE_PRO_MONTHLY || "",
+    amount: 1900, // $19/month
+  },
+};
+
+// Tier limits (-1 = unlimited)
+export const TIER_LIMITS = {
+  free: {
+    applications: 5,
+    interviews: 3,
+    reminders: 5,
+    pdfExport: false,
+    coverLetters: false,
+    pipelineView: false,
+  },
+  pro: {
+    applications: -1, // unlimited
+    interviews: -1,
+    reminders: -1,
+    pdfExport: true,
+    coverLetters: true,
+    pipelineView: true,
+  },
+};
+
+// Helper to get user's effective tier
+export function getEffectiveTier(
+  hasPaid: boolean,
+  subscriptionStatus?: string | null
+): SubscriptionTier {
+  // Legacy one-time payment users get pro tier
+  if (hasPaid) return "pro";
+
+  // Active subscribers get pro tier
+  if (subscriptionStatus === "active") return "pro";
+
+  return "free";
+}
+
+// Check if user can perform action based on tier
+export function canPerformAction(
+  tier: SubscriptionTier,
+  action: keyof (typeof TIER_LIMITS)["free"],
+  currentCount?: number
+): boolean {
+  const limits = TIER_LIMITS[tier];
+  const limit = limits[action];
+
+  // Boolean features
+  if (typeof limit === "boolean") return limit;
+
+  // Numeric limits (-1 = unlimited)
+  if (limit === -1) return true;
+  if (currentCount === undefined) return true;
+
+  return currentCount < limit;
 }
