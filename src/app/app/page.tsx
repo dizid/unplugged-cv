@@ -1,6 +1,6 @@
 import { authServer } from "@/lib/auth/server";
 import { getDb, cvGenerations, userProfiles, reminders, interviews } from "@/lib/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, inArray } from "drizzle-orm";
 import Link from "next/link";
 import {
   ApplicationCard,
@@ -45,14 +45,9 @@ export default async function DashboardPage({
       .limit(1),
     db.select().from(reminders).where(eq(reminders.userId, session.user.id)),
     appIds.length > 0
-      ? db.select().from(interviews)
+      ? db.select().from(interviews).where(inArray(interviews.applicationId, appIds))
       : Promise.resolve([]),
   ]);
-
-  // Filter interviews for user's applications
-  const filteredInterviews = userInterviews.filter((i) =>
-    appIds.includes(i.applicationId)
-  );
 
   const profile = profileResult[0];
   const hasPaid = profile?.hasPaid || false;
@@ -92,7 +87,7 @@ export default async function DashboardPage({
         <DashboardStats
           applications={apps}
           reminders={userReminders}
-          interviews={filteredInterviews}
+          interviews={userInterviews}
         />
       )}
 

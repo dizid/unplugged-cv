@@ -7,4 +7,3 @@ export { JobAnalysis } from "./JobAnalysis";
 export { CheckoutModal } from "./CheckoutModal";
 export { MatchScore } from "./MatchScore";
 export { JobDescriptionPanel } from "./JobDescriptionPanel";
-export { ActionPanel } from "./ActionPanel";

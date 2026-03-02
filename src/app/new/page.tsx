@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -40,6 +40,9 @@ function NewApplicationContent() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasPaid, setHasPaid] = useState(false);
   const [activeTab, setActiveTab] = useState<"cv" | "cover-letter">("cv");
+
+  // Save guard to prevent duplicate application creation
+  const isSaving = useRef(false);
 
   // Modal state
   const [showUrlModal, setShowUrlModal] = useState(false);
@@ -91,7 +94,7 @@ function NewApplicationContent() {
   // Save application after user signs in (if not already saved)
   useEffect(() => {
     const saveApplication = async () => {
-      if (!session.data?.user || applicationId || !generatedCv || isGenerating) {
+      if (!session.data?.user || applicationId || !generatedCv || isGenerating || isSaving.current) {
         return;
       }
 
@@ -187,27 +190,32 @@ function NewApplicationContent() {
 
       // Save the application only if logged in
       if (session.data?.user) {
-        const testMode = new URLSearchParams(window.location.search).get("test") || undefined;
+        isSaving.current = true;
+        try {
+          const testMode = new URLSearchParams(window.location.search).get("test") || undefined;
 
-        const saveRes = await fetch("/api/applications", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jobDescription,
-            parsedJob,
-            jobTitle,
-            companyName,
-            background,
-            generatedCv: cleanCv,
-            testMode,
-          }),
-        });
+          const saveRes = await fetch("/api/applications", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              jobDescription,
+              parsedJob,
+              jobTitle,
+              companyName,
+              background,
+              generatedCv: cleanCv,
+              testMode,
+            }),
+          });
 
-        if (saveRes.ok) {
-          const saveData = await saveRes.json();
-          if (saveData.id) {
-            setApplicationId(saveData.id);
+          if (saveRes.ok) {
+            const saveData = await saveRes.json();
+            if (saveData.id) {
+              setApplicationId(saveData.id);
+            }
           }
+        } finally {
+          isSaving.current = false;
         }
       }
 

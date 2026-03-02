@@ -11,6 +11,8 @@ const tiers = [
       { text: "CV generation", included: true },
       { text: "Job analysis", included: true },
       { text: "Status tracking", included: true },
+      { text: "Interview tracking", included: true },
+      { text: "Reminders & follow-ups", included: true },
       { text: "Pipeline view", included: false },
       { text: "PDF export", included: false },
       { text: "Cover letters", included: false },
@@ -22,20 +24,21 @@ const tiers = [
   {
     name: "Pro",
     price: "$19",
-    period: "/month",
+    period: " one-time",
     description: "Unlimited everything",
     features: [
       { text: "Unlimited applications", included: true },
       { text: "CV generation", included: true },
       { text: "Job analysis", included: true },
       { text: "Status tracking", included: true },
+      { text: "Interview tracking", included: true },
+      { text: "Reminders & follow-ups", included: true },
       { text: "Pipeline view", included: true },
       { text: "PDF export", included: true },
       { text: "Cover letters", included: true },
-      { text: "Interview tracking", included: true },
-      { text: "Reminders & follow-ups", included: true },
+      { text: "AI cover letter refinement", included: true },
     ],
-    cta: "Start Pro",
+    cta: "Get Pro",
     href: "/new",
     highlighted: true,
   },
@@ -132,7 +135,7 @@ export function Pricing() {
         </div>
 
         <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-8">
-          Cancel anytime. No long-term commitment.
+          One-time payment. No subscriptions, no renewals.
         </p>
       </div>
     </section>

@@ -209,7 +209,7 @@ export function Hero() {
               </a>
             </div>
             <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-              No credit card required. 3 free applications.
+              No credit card required. 5 free applications.
             </p>
           </div>
 

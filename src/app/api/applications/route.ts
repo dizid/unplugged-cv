@@ -2,8 +2,9 @@ import { NextResponse } from "next/server";
 import { authServer } from "@/lib/auth/server";
 import { getDb, cvGenerations, userProfiles } from "@/lib/db";
 import { eq } from "drizzle-orm";
+import { TIER_LIMITS } from "@/lib/stripe";
 
-const FREE_LIMIT = 3;
+const FREE_LIMIT = TIER_LIMITS.free.applications;
 
 export async function POST(request: Request) {
   try {

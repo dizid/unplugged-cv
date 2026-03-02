@@ -5,3 +5,7 @@ export { InterviewCard } from "./InterviewCard";
 export { InterviewModal } from "./InterviewModal";
 export { InterviewsSection } from "./InterviewsSection";
 export { ReminderModal } from "./ReminderModal";
+export { GuideCard } from "./GuideCard";
+export { GuidesList } from "./GuidesList";
+export { GuidesTab } from "./GuidesTab";
+export { CoverLetterActions } from "./CoverLetterActions";

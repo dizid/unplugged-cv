@@ -7,6 +7,8 @@ import { StatusSelector } from "./StatusSelector";
 import { Timeline } from "./Timeline";
 import { InterviewsSection } from "./InterviewsSection";
 import { ReminderModal } from "./ReminderModal";
+import { GuidesTab } from "./GuidesTab";
+import { CoverLetterActions } from "./CoverLetterActions";
 import { printCV, printCoverLetter } from "@/lib/pdf";
 import type { CvGeneration, Reminder } from "@/lib/db/schema";
 
@@ -19,12 +21,22 @@ export function ApplicationDetail({
   application,
   hasPaid,
 }: ApplicationDetailProps) {
-  const [activeTab, setActiveTab] = useState<"cv" | "cover-letter" | "job">("cv");
+  const [activeTab, setActiveTab] = useState<
+    "cv" | "cover-letter" | "job" | "guides"
+  >("cv");
   const [copied, setCopied] = useState(false);
   const [publishSlug, setPublishSlug] = useState(application.slug || "");
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState("");
   const [showReminderModal, setShowReminderModal] = useState(false);
+  // Lifted status state so guides tab reacts to status changes
+  const [currentStatus, setCurrentStatus] = useState(
+    application.status || "draft"
+  );
+  // Cover letter state — allows live updates from CoverLetterActions
+  const [currentCoverLetter, setCurrentCoverLetter] = useState(
+    application.coverLetter || ""
+  );
 
   const copyToClipboard = async (content: string) => {
     try {
@@ -86,13 +98,14 @@ export function ApplicationDetail({
           </p>
         </div>
         <StatusSelector
-          currentStatus={application.status || "draft"}
+          currentStatus={currentStatus}
           applicationId={application.id}
+          onStatusChange={setCurrentStatus}
         />
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 flex-wrap">
         <button
           onClick={() => setActiveTab("cv")}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -103,18 +116,16 @@ export function ApplicationDetail({
         >
           CV
         </button>
-        {application.coverLetter && (
-          <button
-            onClick={() => setActiveTab("cover-letter")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === "cover-letter"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-            }`}
-          >
-            Cover Letter
-          </button>
-        )}
+        <button
+          onClick={() => setActiveTab("cover-letter")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === "cover-letter"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+          }`}
+        >
+          Cover Letter
+        </button>
         {application.jobDescription && (
           <button
             onClick={() => setActiveTab("job")}
@@ -127,26 +138,78 @@ export function ApplicationDetail({
             Job Description
           </button>
         )}
+        <button
+          onClick={() => setActiveTab("guides")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === "guides"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
+          }`}
+        >
+          Guides
+        </button>
       </div>
 
       {/* Content */}
       <div className="grid lg:grid-cols-[1fr,300px] gap-6">
-        <div className="p-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 min-h-[500px] max-h-[70vh] overflow-y-auto">
-          {activeTab === "cv" && application.generatedCv && (
-            <div className="cv-prose">
-              <ReactMarkdown>{application.generatedCv}</ReactMarkdown>
-            </div>
-          )}
-          {activeTab === "cover-letter" && application.coverLetter && (
-            <div className="letter-prose">
-              <ReactMarkdown>{application.coverLetter}</ReactMarkdown>
-            </div>
-          )}
-          {activeTab === "job" && application.jobDescription && (
-            <div className="prose dark:prose-invert max-w-none">
-              <pre className="whitespace-pre-wrap text-sm">
-                {application.jobDescription}
-              </pre>
+        <div>
+          {/* Main content panel */}
+          <div className="p-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 min-h-[500px] max-h-[70vh] overflow-y-auto">
+            {activeTab === "cv" && application.generatedCv && (
+              <div className="cv-prose">
+                <ReactMarkdown>{application.generatedCv}</ReactMarkdown>
+              </div>
+            )}
+            {activeTab === "cover-letter" && currentCoverLetter && (
+              <div className="letter-prose">
+                <ReactMarkdown>{currentCoverLetter}</ReactMarkdown>
+              </div>
+            )}
+            {activeTab === "cover-letter" && !currentCoverLetter && (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center max-w-md">
+                  <svg
+                    className="w-12 h-12 mx-auto mb-4 text-gray-300 dark:text-gray-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    No cover letter yet. Generate one tailored to this role.
+                  </p>
+                </div>
+              </div>
+            )}
+            {activeTab === "job" && application.jobDescription && (
+              <div className="prose dark:prose-invert max-w-none">
+                <pre className="whitespace-pre-wrap text-sm">
+                  {application.jobDescription}
+                </pre>
+              </div>
+            )}
+            {activeTab === "guides" && (
+              <GuidesTab currentStatus={currentStatus} />
+            )}
+          </div>
+
+          {/* Cover letter actions — shown below main content when on cover letter tab */}
+          {activeTab === "cover-letter" && (
+            <div className="mt-4 p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+              <CoverLetterActions
+                applicationId={application.id}
+                coverLetter={currentCoverLetter || null}
+                generatedCv={application.generatedCv}
+                parsedJob={application.parsedJob}
+                hasPaid={hasPaid}
+                onCoverLetterUpdate={setCurrentCoverLetter}
+              />
             </div>
           )}
         </div>
@@ -165,7 +228,7 @@ export function ApplicationDetail({
                     activeTab === "cv"
                       ? application.generatedCv || ""
                       : activeTab === "cover-letter"
-                        ? application.coverLetter || ""
+                        ? currentCoverLetter || ""
                         : application.jobDescription || ""
                   )
                 }
@@ -183,9 +246,9 @@ export function ApplicationDetail({
               )}
               {hasPaid &&
                 activeTab === "cover-letter" &&
-                application.coverLetter && (
+                currentCoverLetter && (
                   <button
-                    onClick={() => printCoverLetter(application.coverLetter!)}
+                    onClick={() => printCoverLetter(currentCoverLetter)}
                     className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                   >
                     Download PDF
