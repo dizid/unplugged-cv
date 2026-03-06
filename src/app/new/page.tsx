@@ -110,6 +110,7 @@ function NewApplicationContent() {
             companyName,
             background,
             generatedCv,
+            coverLetter: coverLetter || undefined,
             testMode,
           }),
         });
@@ -126,7 +127,7 @@ function NewApplicationContent() {
     };
 
     saveApplication();
-  }, [session.data?.user, applicationId, generatedCv, isGenerating, jobDescription, parsedJob, jobTitle, companyName, background]);
+  }, [session.data?.user, applicationId, generatedCv, isGenerating, jobDescription, parsedJob, jobTitle, companyName, background, coverLetter]);
 
   const goToStep = useCallback(
     (step: number) => {
@@ -189,6 +190,7 @@ function NewApplicationContent() {
       setGeneratedCv(cleanCv);
 
       // Save the application only if logged in
+      let savedAppId: string | null = null;
       if (session.data?.user) {
         isSaving.current = true;
         try {
@@ -211,6 +213,7 @@ function NewApplicationContent() {
           if (saveRes.ok) {
             const saveData = await saveRes.json();
             if (saveData.id) {
+              savedAppId = saveData.id;
               setApplicationId(saveData.id);
             }
           }
@@ -236,6 +239,15 @@ function NewApplicationContent() {
               if (done) break;
               fullLetter += decoder.decode(value, { stream: true });
               setCoverLetter(fullLetter);
+            }
+
+            // Save cover letter to DB
+            if (savedAppId && fullLetter) {
+              fetch(`/api/applications/${savedAppId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ coverLetter: fullLetter }),
+              }).catch(() => {});
             }
           }
         }

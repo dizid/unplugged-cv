@@ -58,7 +58,7 @@ export function CareerBackgroundEditor({ initialBackground = "" }: CareerBackgro
       <textarea
         value={careerBackground}
         onChange={(e) => setCareerBackground(e.target.value)}
-        placeholder="Paste your career background here: work experience, skills, education, achievements..."
+        placeholder={`Work History:\n- [Role] at [Company] ([Years]). [What you did]\n\nSkills:\n- [Skill 1], [Skill 2], [Skill 3]\n\nEducation:\n- [Degree], [School], [Year]\n\nKey Achievements:\n- [Achievement with numbers/outcomes]`}
         className="w-full h-48 p-4 border border-gray-200 dark:border-gray-700 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 text-sm"
       />
 

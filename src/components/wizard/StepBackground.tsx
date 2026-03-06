@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ImportButtons } from "@/components/ImportButtons";
 
 interface StepBackgroundProps {
@@ -19,6 +20,8 @@ export function StepBackground({
   onGoogleDocsClick,
   onUrlClick,
 }: StepBackgroundProps) {
+  const [showExample, setShowExample] = useState(false);
+
   return (
     <div className="space-y-6">
       <div>
@@ -29,18 +32,52 @@ export function StepBackground({
           Paste anything - old CV, LinkedIn, career notes. AI will figure it
           out.
         </p>
+        <button
+          type="button"
+          onClick={() => setShowExample(!showExample)}
+          className="mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          {showExample ? "Hide example" : "Not sure what to write? See example"}
+        </button>
       </div>
+
+      {showExample && (
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 text-sm text-gray-700 dark:text-gray-300 space-y-3">
+          <p className="font-medium text-gray-900 dark:text-white">
+            Include any of these — in any format:
+          </p>
+          <div>
+            <span className="font-medium">Work History:</span> Senior Marketing Manager at TechCorp (2019-2024). Led demand gen team of 6. Managed $2M annual budget.
+          </div>
+          <div>
+            <span className="font-medium">Key Skills:</span> Google Ads, HubSpot, SQL, team management, budget forecasting
+          </div>
+          <div>
+            <span className="font-medium">Education:</span> MBA Marketing, University of Amsterdam, 2018
+          </div>
+          <div>
+            <span className="font-medium">Achievements:</span> Grew MQL pipeline 3x in 18 months. Launched product that hit $1M ARR in first year.
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 italic">
+            Don&apos;t worry about formatting — the AI handles that.
+          </p>
+        </div>
+      )}
 
       <textarea
         value={background}
         onChange={(e) => setBackground(e.target.value)}
-        placeholder={`Example:
-- 10 years in marketing, started at agencies
-- Now head of growth at a startup
-- Launched 3 products to $1M+ ARR
-- Manage team of 8
-- Good with SQL, some Python
-- MBA from State University, 2015`}
+        placeholder={`Work History:
+- [Role] at [Company] ([Years]). [What you did]
+
+Skills:
+- [Skill 1], [Skill 2], [Skill 3]
+
+Education:
+- [Degree], [School], [Year]
+
+Key Achievements:
+- [Achievement with numbers/outcomes]`}
         className="w-full h-64 p-4 border border-gray-200 dark:border-gray-700 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
       />
 

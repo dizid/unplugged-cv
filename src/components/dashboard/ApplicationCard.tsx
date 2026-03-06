@@ -51,11 +51,26 @@ export function ApplicationCard({
             {application.companyName || "Company not specified"}
           </p>
         </div>
-        <span
-          className={`px-2 py-1 rounded text-xs font-medium ${statusStyles[status] || statusStyles.draft}`}
-        >
-          {status}
-        </span>
+        <div className="flex items-center gap-2">
+          {application.matchScore != null && (
+            <span
+              className={`px-2 py-1 rounded text-xs font-bold ${
+                application.matchScore >= 75
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
+                  : application.matchScore >= 50
+                    ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300"
+                    : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+              }`}
+            >
+              {application.matchScore}%
+            </span>
+          )}
+          <span
+            className={`px-2 py-1 rounded text-xs font-medium ${statusStyles[status] || statusStyles.draft}`}
+          >
+            {status}
+          </span>
+        </div>
       </div>
       <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
         Updated {timeAgo}

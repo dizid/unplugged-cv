@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 import { authServer } from "@/lib/auth/server";
-import { getDb, userProfiles } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { getDb, userProfiles, cvGenerations } from "@/lib/db";
+import { eq, and } from "drizzle-orm";
 import { getEffectiveTier } from "@/lib/stripe";
 import type { ParsedJob } from "../parse-job/route";
 
@@ -86,9 +86,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const { cv, parsedJob } = await request.json() as {
+    const { cv, parsedJob, applicationId } = await request.json() as {
       cv: string;
       parsedJob: ParsedJob;
+      applicationId?: string;
     };
 
     if (!cv || typeof cv !== "string" || cv.trim().length < 100) {
@@ -157,6 +158,23 @@ Analyze the match and return JSON only.`,
 
     // Validate score is in range
     result.score = Math.max(0, Math.min(100, Math.round(result.score)));
+
+    // Persist score to DB if applicationId provided
+    if (applicationId) {
+      await db
+        .update(cvGenerations)
+        .set({
+          matchScore: result.score,
+          matchDetails: JSON.stringify(result),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(cvGenerations.id, applicationId),
+            eq(cvGenerations.userId, session.user.id)
+          )
+        );
+    }
 
     return new Response(JSON.stringify(result), {
       headers: { "Content-Type": "application/json" },

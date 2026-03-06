@@ -37,6 +37,17 @@ export function ApplicationDetail({
   const [currentCoverLetter, setCurrentCoverLetter] = useState(
     application.coverLetter || ""
   );
+  // CV state — allows live updates from inline editing
+  const [currentCv, setCurrentCv] = useState(application.generatedCv || "");
+  // Inline editing state
+  const [isEditingCv, setIsEditingCv] = useState(false);
+  const [isEditingCoverLetter, setIsEditingCoverLetter] = useState(false);
+  const [editedCv, setEditedCv] = useState(currentCv);
+  const [editedCoverLetter, setEditedCoverLetter] = useState(currentCoverLetter);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  // Match score state
+  const [matchScore, setMatchScore] = useState<number | null>(application.matchScore ?? null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const copyToClipboard = async (content: string) => {
     try {
@@ -76,6 +87,72 @@ export function ApplicationDetail({
       setPublishError("Failed to publish");
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleSaveEdit = async (field: "cv" | "coverLetter") => {
+    setIsSavingEdit(true);
+    try {
+      const payload =
+        field === "cv"
+          ? { generatedCv: editedCv }
+          : { coverLetter: editedCoverLetter };
+      const res = await fetch(`/api/applications/${application.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        if (field === "cv") {
+          setCurrentCv(editedCv);
+          setIsEditingCv(false);
+        } else {
+          setCurrentCoverLetter(editedCoverLetter);
+          setIsEditingCoverLetter(false);
+        }
+      }
+    } catch {
+      console.error("Failed to save edit");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleCancelEdit = (field: "cv" | "coverLetter") => {
+    if (field === "cv") {
+      setEditedCv(currentCv);
+      setIsEditingCv(false);
+    } else {
+      setEditedCoverLetter(currentCoverLetter);
+      setIsEditingCoverLetter(false);
+    }
+  };
+
+  const handleAnalyzeMatch = async () => {
+    if (!currentCv || !application.parsedJob) return;
+    setIsAnalyzing(true);
+    try {
+      let parsedJob = application.parsedJob;
+      if (typeof parsedJob === "string") {
+        parsedJob = JSON.parse(parsedJob);
+      }
+      const res = await fetch("/api/match-score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cv: currentCv,
+          parsedJob,
+          applicationId: application.id,
+        }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        setMatchScore(result.score);
+      }
+    } catch {
+      console.error("Failed to analyze match");
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -155,15 +232,31 @@ export function ApplicationDetail({
         <div>
           {/* Main content panel */}
           <div className="p-6 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 min-h-[500px] max-h-[70vh] overflow-y-auto">
-            {activeTab === "cv" && application.generatedCv && (
-              <div className="cv-prose">
-                <ReactMarkdown>{application.generatedCv}</ReactMarkdown>
-              </div>
+            {activeTab === "cv" && currentCv && (
+              isEditingCv ? (
+                <textarea
+                  value={editedCv}
+                  onChange={(e) => setEditedCv(e.target.value)}
+                  className="w-full h-full min-h-[500px] p-4 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-0 resize-none focus:outline-none"
+                />
+              ) : (
+                <div className="cv-prose">
+                  <ReactMarkdown>{currentCv}</ReactMarkdown>
+                </div>
+              )
             )}
             {activeTab === "cover-letter" && currentCoverLetter && (
-              <div className="letter-prose">
-                <ReactMarkdown>{currentCoverLetter}</ReactMarkdown>
-              </div>
+              isEditingCoverLetter ? (
+                <textarea
+                  value={editedCoverLetter}
+                  onChange={(e) => setEditedCoverLetter(e.target.value)}
+                  className="w-full h-full min-h-[500px] p-4 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-white border-0 resize-none focus:outline-none"
+                />
+              ) : (
+                <div className="letter-prose">
+                  <ReactMarkdown>{currentCoverLetter}</ReactMarkdown>
+                </div>
+              )
             )}
             {activeTab === "cover-letter" && !currentCoverLetter && (
               <div className="flex items-center justify-center h-64">
@@ -226,7 +319,7 @@ export function ApplicationDetail({
                 onClick={() =>
                   copyToClipboard(
                     activeTab === "cv"
-                      ? application.generatedCv || ""
+                      ? currentCv || ""
                       : activeTab === "cover-letter"
                         ? currentCoverLetter || ""
                         : application.jobDescription || ""
@@ -236,9 +329,62 @@ export function ApplicationDetail({
               >
                 {copied ? "Copied!" : "Copy to Clipboard"}
               </button>
-              {hasPaid && activeTab === "cv" && application.generatedCv && (
+              {/* Edit / Save / Cancel buttons for CV and Cover Letter tabs */}
+              {activeTab === "cv" && currentCv && (
+                isEditingCv ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSaveEdit("cv")}
+                      disabled={isSavingEdit}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm disabled:opacity-50"
+                    >
+                      {isSavingEdit ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => handleCancelEdit("cv")}
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-700 dark:text-gray-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setEditedCv(currentCv); setIsEditingCv(true); }}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-700 dark:text-gray-300"
+                  >
+                    Edit CV
+                  </button>
+                )
+              )}
+              {activeTab === "cover-letter" && currentCoverLetter && (
+                isEditingCoverLetter ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSaveEdit("coverLetter")}
+                      disabled={isSavingEdit}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm disabled:opacity-50"
+                    >
+                      {isSavingEdit ? "Saving..." : "Save"}
+                    </button>
+                    <button
+                      onClick={() => handleCancelEdit("coverLetter")}
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-700 dark:text-gray-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setEditedCoverLetter(currentCoverLetter); setIsEditingCoverLetter(true); }}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-700 dark:text-gray-300"
+                  >
+                    Edit Cover Letter
+                  </button>
+                )
+              )}
+              {hasPaid && activeTab === "cv" && currentCv && !isEditingCv && (
                 <button
-                  onClick={() => printCV(application.generatedCv!)}
+                  onClick={() => printCV(currentCv)}
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                 >
                   Download PDF
@@ -246,7 +392,8 @@ export function ApplicationDetail({
               )}
               {hasPaid &&
                 activeTab === "cover-letter" &&
-                currentCoverLetter && (
+                currentCoverLetter &&
+                !isEditingCoverLetter && (
                   <button
                     onClick={() => printCoverLetter(currentCoverLetter)}
                     className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
@@ -254,8 +401,57 @@ export function ApplicationDetail({
                     Download PDF
                   </button>
                 )}
+              {/* Apply to Similar Role */}
+              <Link
+                href="/new"
+                className="block w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-700 dark:text-gray-300 text-center"
+              >
+                Apply to Similar Role
+              </Link>
             </div>
           </div>
+
+          {/* Match Score */}
+          {hasPaid && application.parsedJob && (
+            <div className="p-4 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800">
+              <h3 className="font-semibold mb-3 text-gray-900 dark:text-white">
+                Match Score
+              </h3>
+              {matchScore !== null ? (
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`text-2xl font-bold ${
+                      matchScore >= 75
+                        ? "text-green-600 dark:text-green-400"
+                        : matchScore >= 50
+                          ? "text-yellow-600 dark:text-yellow-400"
+                          : "text-red-600 dark:text-red-400"
+                    }`}
+                  >
+                    {matchScore}%
+                  </div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {matchScore >= 75
+                      ? "Strong match"
+                      : matchScore >= 50
+                        ? "Moderate match"
+                        : "Weak match"}
+                  </span>
+                </div>
+              ) : null}
+              <button
+                onClick={handleAnalyzeMatch}
+                disabled={isAnalyzing}
+                className="w-full mt-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm text-gray-700 dark:text-gray-300 disabled:opacity-50"
+              >
+                {isAnalyzing
+                  ? "Analyzing..."
+                  : matchScore !== null
+                    ? "Re-analyze"
+                    : "Analyze Match"}
+              </button>
+            </div>
+          )}
 
           {/* Publish */}
           {hasPaid && (
@@ -276,6 +472,11 @@ export function ApplicationDetail({
                   >
                     unplugged.cv/cv/{application.slug}
                   </a>
+                  {typeof application.viewCount === "number" && application.viewCount > 0 && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {application.viewCount} {application.viewCount === 1 ? "view" : "views"}
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-2">

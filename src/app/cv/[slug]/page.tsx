@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 import { getDb, cvGenerations } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { PublicCVView } from "./PublicCVView";
 
 interface PageProps {
@@ -58,6 +58,14 @@ export default async function PublicCVPage({ params }: PageProps) {
   if (!cv || !cv.generatedCv) {
     notFound();
   }
+
+  // Increment view count (fire-and-forget, don't block render)
+  const db = getDb();
+  db.update(cvGenerations)
+    .set({ viewCount: sql`${cvGenerations.viewCount} + 1` })
+    .where(and(eq(cvGenerations.slug, slug), eq(cvGenerations.isPublished, true)))
+    .then(() => {})
+    .catch(() => {});
 
   return <PublicCVView cv={cv.generatedCv} />;
 }

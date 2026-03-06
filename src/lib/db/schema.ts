@@ -51,6 +51,7 @@ export const cvGenerations = pgTable("cv_generations", {
   nextActionDueAt: timestamp("next_action_due_at"),
   priority: integer("priority").default(0), // 0=normal, 1=high, 2=urgent
   archived: boolean("archived").default(false).notNull(),
+  viewCount: integer("view_count").default(0).notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

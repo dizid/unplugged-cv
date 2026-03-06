@@ -84,6 +84,8 @@ export async function PATCH(
     if (body.nextActionDueAt !== undefined) updateData.nextActionDueAt = body.nextActionDueAt ? new Date(body.nextActionDueAt) : null;
     if (body.priority !== undefined) updateData.priority = body.priority;
     if (body.archived !== undefined) updateData.archived = body.archived;
+    if (body.matchScore !== undefined) updateData.matchScore = body.matchScore;
+    if (body.matchDetails !== undefined) updateData.matchDetails = body.matchDetails;
 
     await db
       .update(cvGenerations)

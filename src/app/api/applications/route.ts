@@ -14,7 +14,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { jobDescription, parsedJob, jobTitle, companyName, background, generatedCv, testMode } =
+    const { jobDescription, parsedJob, jobTitle, companyName, background, generatedCv, coverLetter, testMode } =
       await request.json();
 
     const db = getDb();
@@ -72,6 +72,7 @@ export async function POST(request: Request) {
         companyName: companyName || parsedJob?.company || null,
         parsedJob: parsedJob ? JSON.stringify(parsedJob) : null,
         generatedCv: generatedCv || null,
+        coverLetter: coverLetter || null,
         modelUsed: "claude-sonnet-4-20250514",
         status: "draft",
       })
